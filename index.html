@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bowling Brackets</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #111827;
+    color: white;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+}
+
+h1 {
+    text-align: center;
+    color: #ff8a00;
+}
+
+.card {
+    background: #1f2937;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-top: 12px;
+}
+
+input, select, button {
+    font-size: 18px;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 6px;
+    border: none;
+}
+
+input, select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+button {
+    background: #ff8a00;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    opacity: .9;
+}
+
+.players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.match {
+    background: #374151;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #4b5563;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 6px;
+}
+
+.winner {
+    border: 2px solid #22c55e;
+}
+
+.small {
+    font-size: 14px;
+    color: #d1d5db;
+}
+
+.hidden {
+    display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎳 Bowling Brackets</h1>
+
+<div class="card">
+
+<h2>Tournament Setup</h2>
+
+<label>Bracket Size</label>
+<select id="bracketSize">
+<option value="8">8 Players</option>
+<option value="16">16 Players</option>
+<option value="32">32 Players</option>
+</select>
+
+<label>Bracket Type</label>
+<select id="bracketType">
+<option value="handicap">Handicap</option>
+<option value="scratch">Scratch</option>
+<option value="reverse">Reverse Scratch</option>
+</select>
+
+<label>Tiebreaker</label>
+<select id="tiebreaker">
+<option value="highGame">Highest Game</option>
+<option value="nineTen">9th + 10th Frame</option>
+<option value="oneBall">One Ball Roll-Off</option>
+<option value="higherSeed">Higher Seed Wins</option>
+</select>
+
+<br><br>
+
+<button onclick="createTournament()">Create Tournament</button>
+
+</div>
+
+<div id="playersArea" class="card hidden">
+
+<h2>Players</h2>
+
+<div id="players" class="players"></div>
+
+<br>
+
+<button onclick="generateBracket()">Generate Bracket</button>
+
+</div>
+
+<div id="bracketArea" class="card hidden">
+
+<h2>Bracket</h2>
+
+<div id="bracket"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let players = [];
+let matches = [];
+
+function createTournament() {
+
+    const size = Number(document.getElementById("bracketSize").value);
+
+    players = [];
+
+    const area = document.getElementById("players");
+    area.innerHTML = "";
+
+    for (let i = 0; i < size; i++) {
+
+        const input = document.createElement("input");
+
+        input.placeholder = "Player " + (i + 1);
+        input.id = "player" + i;
+
+        area.appendChild(input);
+    }
+
+    document.getElementById("playersArea")
+        .classList.remove("hidden");
+}
+
+function generateBracket() {
+
+    const size = Number(document.getElementById("bracketSize").value);
+
+    players = [];
+
+    for (let i = 0; i < size; i++) {
+
+        const name =
+            document.getElementById("player" + i).value.trim()
+            || "Player " + (i + 1);
+
+        players.push({
+            name: name,
+            score: null
+        });
+    }
+
+    matches = [];
+
+    for (let i = 0; i < players.length; i += 2) {
+
+        matches.push({
+            player1: players[i],
+            player2: players[i + 1],
+            winner: null
+        });
+    }
+
+    displayBracket();
+}
+
+function displayBracket() {
+
+    const bracket =
+        document.getElementById("bracket");
+
+    bracket.innerHTML = "";
+
+    matches.forEach((match, index) => {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "match";
+
+        div.innerHTML = `
+            <strong>Match ${index + 1}</strong>
+
+            <div class="player">
+                <span>${match.player1.name}</span>
+                <input
+                    type="number"
+                    placeholder="Score"
+                    id="score-${index}-1"
+                    style="width:90px">
+            </div>
+
+            <div class="player">
+                <span>${match.player2.name}</span>
+                <input
+                    type="number"
+                    placeholder="Score"
+                    id="score-${index}-2"
+                    style="width:90px">
+            </div>
+
+            <button onclick="recordScore(${index})">
+                Enter Winner
+            </button>
+
+            <button onclick="toggleOpponent(${index})">
+                Toggle Opponent
+            </button>
+
+            <div id="result-${index}" class="small"></div>
+        `;
+
+        bracket.appendChild(div);
+    });
+
+    document.getElementById("bracketArea")
+        .classList.remove("hidden");
+}
+
+function recordScore(index) {
+
+    const score1 =
+        Number(document.getElementById(
+            `score-${index}-1`
+        ).value);
+
+    const score2 =
+        Number(document.getElementById(
+            `score-${index}-2`
+        ).value);
+
+    if (!score1 && !score2) {
+        alert("Enter both scores.");
+        return;
+    }
+
+    if (score1 === score2) {
+
+        const rule =
+            document.getElementById("tiebreaker").value;
+
+        document.getElementById(
+            `result-${index}`
+        ).innerHTML =
+            "Tie! Tiebreaker: " + rule;
+
+        return;
+    }
+
+    let winner;
+
+    if (score1 > score2) {
+        winner = matches[index].player1;
+    } else {
+        winner = matches[index].player2;
+    }
+
+    matches[index].winner = winner;
+
+    document.getElementById(
+        `result-${index}`
+    ).innerHTML =
+        "Winner: <strong>" + winner.name + "</strong>";
+
+}
+
+function toggleOpponent(index) {
+
+    const match = matches[index];
+
+    const temp = match.player1;
+
+    match.player1 = match.player2;
+    match.player2 = temp;
+
+    displayBracket();
+}
+
+</script>
+
+</body>
+</html>
