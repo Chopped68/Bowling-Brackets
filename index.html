@@ -498,7 +498,6 @@ function loadTournament() {
 const playersGrid = document.getElementById("playersGrid");
 
 function createPlayerInputs() {
-
     const count = Number(document.getElementById("playerCount").value);
 
     playersGrid.innerHTML = "";
@@ -510,10 +509,21 @@ function createPlayerInputs() {
 
         div.innerHTML = `
             <span class="entry-number">${i}.</span>
+
             <input
                 type="text"
                 id="player${i}"
                 placeholder="Bowler / Entry ${i}"
+                oninput="syncBowlerAverage(${i})"
+            >
+
+            <input
+                type="number"
+                id="average${i}"
+                placeholder="Average"
+                min="0"
+                max="300"
+                oninput="updateBowlerAverages(${i})"
             >
         `;
 
@@ -525,13 +535,57 @@ document.getElementById("playerCount")
     .addEventListener("change", createPlayerInputs);
 
 createPlayerInputs();
+function syncBowlerAverage(changedIndex) {
+    const name = document.getElementById(`player${changedIndex}`).value.trim();
 
+    if (!name) return;
+
+    const averageField = document.getElementById(`average${changedIndex}`);
+
+    for (let i = 1; i <= Number(document.getElementById("playerCount").value); i++) {
+        if (i === changedIndex) continue;
+
+        const otherName = document.getElementById(`player${i}`).value.trim();
+
+        if (otherName.toLowerCase() === name.toLowerCase()) {
+            const otherAverage = document.getElementById(`average${i}`).value;
+
+            if (otherAverage !== "") {
+                averageField.value = otherAverage;
+                return;
+            }
+        }
+    }
+}
+
+function updateBowlerAverages(changedIndex) {
+    const name = document.getElementById(`player${changedIndex}`).value.trim();
+    const average = document.getElementById(`average${changedIndex}`).value;
+
+    if (!name || average === "") return;
+
+    for (let i = 1; i <= Number(document.getElementById("playerCount").value); i++) {
+        if (i === changedIndex) continue;
+
+        const otherName = document.getElementById(`player${i}`).value.trim();
+
+        if (otherName.toLowerCase() === name.toLowerCase()) {
+            document.getElementById(`average${i}`).value = average;
+        }
+    }
+}
 
 function startTournament() {
 
     const count = Number(document.getElementById("playerCount").value);
 
+
+    
+
     const names = [];
+
+    const averages = [];
+
 
     for (let i = 1; i <= count; i++) {
 
@@ -539,7 +593,9 @@ function startTournament() {
             .getElementById("player" + i)
             .value
             .trim();
+const average = Number(document.getElementById("average" + i).value);
 
+averages.push(average);
         names.push(value);
     }
 
@@ -561,7 +617,7 @@ function startTournament() {
         count: count,
 
         names: names,
-
+    averages: averages,
         scoringType:
             document.getElementById("scoringType").value,
 
