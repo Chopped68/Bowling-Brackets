@@ -460,7 +460,7 @@ button:hover {
         </div>
 
         <div class="actions">
-            <button class="success" onclick="saveScore()">Save Score</button>
+            <button type="button" class="success" onclick="saveScore()">Save Score</button>
             <button class="secondary" onclick="closeScoreModal()">Cancel</button>
         </div>
 
@@ -1145,6 +1145,7 @@ function finishMatch(match, winner) {
     closeScoreModal();
 
     renderBracket();
+    checkAdvanceRounds();
     saveTournament();
 }
 
