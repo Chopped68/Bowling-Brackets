@@ -72,6 +72,14 @@ header p {
     min-width: 190px;
 }
 
+.automatic-bracket {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
 .panel {
     background: white;
     border-radius: 10px;
@@ -337,27 +345,30 @@ button:hover {
 
     
 <section id="multiManager" class="panel multi-manager">
-    <h2>Bracket Manager</h2>
+    <h2>Bracket Entries</h2>
     <p class="info">
-        Create multiple independent 8-spot brackets. Each bracket has its own
-        scoring type. A bowler can be entered in more than one bracket.
+        Enter every bracket entry below. The app will automatically calculate
+        how many 8-spot brackets are needed and randomly place entries into them.
+        The same bowler may have multiple entries.
     </p>
     <div class="manager-controls">
         <div>
-            <label>Bracket Name</label>
-            <input id="multiBracketName" type="text" placeholder="Handicap #1">
-        </div>
-        <div>
-            <label>Scoring Type</label>
-            <select id="multiBracketType">
+            <label>Scoring Type for These Entries</label>
+            <select id="multiEntryType">
                 <option value="handicap">Handicap</option>
                 <option value="scratch">Scratch</option>
                 <option value="reverse">Reverse Scratch</option>
             </select>
         </div>
-        <button class="primary" type="button" onclick="createManagedBracket()">+ Add 8-Spot Bracket</button>
+        <div>
+            <label>Number of Entries</label>
+            <input id="multiEntryCount" type="number" min="1" value="8">
+        </div>
+        <button class="primary" type="button" onclick="setAutomaticEntryCount()">Set Entries</button>
     </div>
-    <div id="managedBracketList"></div>
+    <div id="automaticBracketSummary" class="info">
+        8 entries = 1 bracket
+    </div>
 </section>
 
 <div id="setupPanel" class="panel">
@@ -367,15 +378,9 @@ button:hover {
         <div class="setup-grid">
 
             <div>
-                <label>Number of Bracket Spots</label>
-                <select id="playerCount">
-                    <option value="2">2 Players</option>
-                    <option value="4">4 Players</option>
-                    <option value="8">8 Players</option>
-                    <option value="16" selected>16 Players</option>
-                    <option value="32">32 Players</option>
-                    <option value="64">64 Players</option>
-                </select>
+                <label>Total Entries</label>
+                <input id="playerCount" type="number" min="2" value="8"
+                       oninput="updateAutomaticBracketSummary()">
             </div>
 
             <div>
@@ -552,6 +557,34 @@ function loadTournament() {
 }
 const playersGrid = document.getElementById("playersGrid");
 
+
+function calculateAutomaticBracketCount(entryCount) {
+    return Math.max(1, Math.ceil(Number(entryCount || 0) / 8));
+}
+
+function updateAutomaticBracketSummary() {
+    const field = document.getElementById("playerCount");
+    const summary = document.getElementById("automaticBracketSummary");
+    if (!field || !summary) return;
+
+    const count = Math.max(0, Number(field.value) || 0);
+    const brackets = calculateAutomaticBracketCount(count);
+    summary.innerHTML =
+        `<strong>${count}</strong> entries → <strong>${brackets}</strong> ` +
+        `8-spot bracket${brackets === 1 ? "" : "s"}. ` +
+        `Entries will be randomized.`;
+}
+
+function setAutomaticEntryCount() {
+    const count = Math.max(2, Number(document.getElementById("multiEntryCount").value) || 2);
+    const type = document.getElementById("multiEntryType").value;
+
+    document.getElementById("playerCount").value = count;
+    document.getElementById("scoringType").value = type;
+    createPlayerInputs();
+    updateAutomaticBracketSummary();
+}
+
 function createPlayerInputs() {
     const count = Number(document.getElementById("playerCount").value);
 
@@ -718,47 +751,70 @@ averages.push(average);
 }
 
 
+function shuffleArray(array) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
+
 function buildFirstRound() {
+    const entries = [];
 
-    const count = tournament.count;
-
-    let round = [];
-
-    for (let i = 0; i < count; i += 2) {
-
-        const player1 =
-            tournament.names[i] || null;
-
-        const player2 =
-            tournament.names[i + 1] || null;
-
-        round.push({
-
-            id: "m" + i,
-
-            player1: player1,
-            player2: player2,
-
-            score1: null,
-            score2: null,
-
-            winner: null,
-
-            tie1: null,
-            tie2: null,
-
-            completed: false,
-
-            bye: false
-
-        });
+    for (let i = 0; i < tournament.names.length; i++) {
+        const name = tournament.names[i];
+        if (name && name.trim()) {
+            entries.push({
+                name: name.trim(),
+                average: Number(tournament.averages[i]) || 0
+            });
+        }
     }
 
-    tournament.rounds.push(round);
+    const randomized = shuffleArray(entries);
+
+    tournament.randomizedEntries = randomized;
+    tournament.count = randomized.length;
+
+    const round = [];
+
+    // Entries are randomly assigned to 8-spot brackets.
+    // Each 8-entry group becomes one independent bracket.
+    for (let i = 0; i < randomized.length; i += 8) {
+        const group = randomized.slice(i, i + 8);
+
+        // Pad the final group with nulls. These become byes.
+        while (group.length < 8) group.push(null);
+
+        // Store the group's entries in the match order.
+        for (let j = 0; j < group.length; j += 2) {
+            const p1 = group[j];
+            const p2 = group[j + 1];
+
+            round.push({
+                id: "m" + i + "-" + j,
+                bracketNumber: Math.floor(i / 8) + 1,
+                player1: p1 ? p1.name : null,
+                player2: p2 ? p2.name : null,
+                score1: null,
+                score2: null,
+                winner: null,
+                tie1: null,
+                tie2: null,
+                completed: false,
+                bye: false
+            });
+        }
+    }
+
+    tournament.rounds = [round];
+    tournament.bracketCount = Math.ceil(randomized.length / 8);
+    tournament.spotCount = tournament.bracketCount * 8;
 
     processByes();
 }
-
 
 function processByes() {
 
@@ -1425,197 +1481,14 @@ function newTournament() {
 }
 document.getElementById("saveScoreButton").addEventListener("click", saveScore);
 
-
-
-/* ===== Multiple independent bracket manager ===== */
-const MANAGED_BRACKETS_KEY = "bowlingManagedBrackets";
-let activeManagedBracketId = null;
-
-function managedBrackets() {
-    try {
-        return JSON.parse(localStorage.getItem(MANAGED_BRACKETS_KEY) || "[]");
-    } catch (e) {
-        return [];
-    }
-}
-
-function saveManagedBrackets(list) {
-    localStorage.setItem(MANAGED_BRACKETS_KEY, JSON.stringify(list));
-}
-
-function scoringLabel(type) {
-    return type === "handicap" ? "Handicap" :
-           type === "scratch" ? "Scratch" : "Reverse Scratch";
-}
-
-function createManagedBracket() {
-    const type = document.getElementById("multiBracketType").value;
-    const nameInput = document.getElementById("multiBracketName");
-    const list = managedBrackets();
-
-    const sameType = list.filter(b => b.type === type).length;
-    const defaultName = `${scoringLabel(type)} #${sameType + 1}`;
-    const name = nameInput.value.trim() || defaultName;
-
-    const bracket = {
-        id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-        name: name,
-        type: type,
-        spots: 8,
-        tournament: null
-    };
-
-    list.push(bracket);
-    saveManagedBrackets(list);
-    nameInput.value = "";
-    renderManagedBrackets();
-    openManagedBracket(bracket.id);
-}
-
-function renderManagedBrackets() {
-    const box = document.getElementById("managedBracketList");
-    if (!box) return;
-
-    const list = managedBrackets();
-
-    if (!list.length) {
-        box.innerHTML = '<p class="muted">No brackets created yet. Add your first 8-spot bracket above.</p>';
-        return;
-    }
-
-    box.innerHTML = list.map(b => {
-        const entries = b.tournament
-            ? b.tournament.names.filter(n => n && n.trim()).length
-            : 0;
-        const status = b.tournament && b.tournament.champion
-            ? `Champion: ${escapeHtml(b.tournament.champion)}`
-            : `${entries}/8 entries`;
-
-        return `
-        <div class="multi-bracket-row">
-            <span class="bracket-name">${escapeHtml(b.name)}</span>
-            <span class="bracket-meta">${scoringLabel(b.type)} · 8 spots · ${status}</span>
-            <button type="button" onclick="openManagedBracket('${b.id}')">Open</button>
-            <button type="button" class="danger" onclick="deleteManagedBracket('${b.id}')">Delete</button>
-        </div>`;
-    }).join("");
-}
-
-function deleteManagedBracket(id) {
-    const list = managedBrackets();
-    const b = list.find(x => x.id === id);
-    if (!b) return;
-
-    if (!confirm(`Delete ${b.name}? This removes that bracket and its scores.`)) return;
-
-    saveManagedBrackets(list.filter(x => x.id !== id));
-
-    if (activeManagedBracketId === id) {
-        activeManagedBracketId = null;
-        tournament = null;
-        sessionStorage.removeItem("bowlingTournament");
-        document.getElementById("tournamentPanel").classList.add("hidden");
-        document.getElementById("setupPanel").classList.remove("hidden");
-    }
-
-    renderManagedBrackets();
-}
-
-function openManagedBracket(id) {
-    const b = managedBrackets().find(x => x.id === id);
-    if (!b) return;
-
-    activeManagedBracketId = id;
-
-    document.getElementById("playerCount").value = "8";
-    document.getElementById("scoringType").value = b.type;
+if (loadTournament()) {
+    document.getElementById("setupPanel").classList.add("hidden");
+    document.getElementById("tournamentPanel").classList.remove("hidden");
+    renderBracket();
+} else {
     createPlayerInputs();
-
-    if (b.tournament) {
-        tournament = b.tournament;
-        sessionStorage.setItem("bowlingTournament", JSON.stringify(tournament));
-        document.getElementById("setupPanel").classList.add("hidden");
-        document.getElementById("tournamentPanel").classList.remove("hidden");
-        renderBracket();
-    } else {
-        tournament = null;
-        sessionStorage.removeItem("bowlingTournament");
-        document.getElementById("tournamentPanel").classList.add("hidden");
-        document.getElementById("setupPanel").classList.remove("hidden");
-    }
-
-    window.scrollTo({top: 0, behavior: "smooth"});
+    updateAutomaticBracketSummary();
 }
-
-function saveActiveManagedBracket() {
-    if (!activeManagedBracketId || !tournament) return;
-
-    const list = managedBrackets();
-    const b = list.find(x => x.id === activeManagedBracketId);
-    if (!b) return;
-
-    b.tournament = tournament;
-    b.type = tournament.scoringType;
-    b.spots = 8;
-    saveManagedBrackets(list);
-    renderManagedBrackets();
-}
-
-/* Replace the normal save with a wrapper that also snapshots the active bracket. */
-const originalSaveTournament = saveTournament;
-saveTournament = function() {
-    originalSaveTournament();
-    saveActiveManagedBracket();
-};
-
-/* Make a new tournament return to the bracket manager instead of deleting all brackets. */
-const originalNewTournament = newTournament;
-newTournament = function() {
-    if (!confirm("Return to the bracket list? The current bracket will be saved.")) return;
-
-    saveActiveManagedBracket();
-    tournament = null;
-    sessionStorage.removeItem("bowlingTournament");
-
-    document.getElementById("tournamentPanel").classList.add("hidden");
-    document.getElementById("setupPanel").classList.remove("hidden");
-    document.getElementById("scoringType").value =
-        (managedBrackets().find(b => b.id === activeManagedBracketId) || {}).type || "handicap";
-    createPlayerInputs();
-    renderManagedBrackets();
-    window.scrollTo({top:0, behavior:"smooth"});
-};
-
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
-    }[c]));
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-    renderManagedBrackets();
-});
-document.getElementById("saveScoreButton").addEventListener("click", saveScore);
-
-document.addEventListener("DOMContentLoaded", function() {
-    if (loadTournament()) {
-        const savedActive = managedBrackets().find(b =>
-            b.tournament &&
-            JSON.stringify(b.tournament) === JSON.stringify(tournament)
-        );
-
-        if (savedActive) {
-            activeManagedBracketId = savedActive.id;
-        }
-
-        document.getElementById("setupPanel").classList.add("hidden");
-        document.getElementById("tournamentPanel").classList.remove("hidden");
-        renderBracket();
-    } else {
-        createPlayerInputs();
-        renderManagedBrackets();
-    }
-});
 </script>
 
 </body>
