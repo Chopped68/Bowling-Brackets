@@ -418,14 +418,15 @@ button:hover {
         <h2>Enter Scores</h2>
 
         <div id="scoreMatchInfo"></div>
+        <div id="adjustedScoreInfo" class="info hidden"></div>
 
         <div class="score-grid">
 
             <label id="player1Label">Player 1</label>
-            <input id="score1" type="number" min="0" max="300">
+            <input id="score1" type="number" min="0" max="300" oninput="updateAdjustedScorePreview()">
 
             <label id="player2Label">Player 2</label>
-            <input id="score2" type="number" min="0" max="300">
+            <input id="score2" type="number" min="0" max="300" oninput="updateAdjustedScorePreview()">
 
         </div>
 
@@ -473,22 +474,19 @@ let activeMatch = null;
 
 function saveTournament() {
     if (tournament) {
-        localStorage.setItem(
-            "bowlingTournament",
-            JSON.stringify(tournament)
-        );
+        sessionStorage.setItem("bowlingTournament", JSON.stringify(tournament));
     }
 }
 
 function loadTournament() {
-    const saved = localStorage.getItem("bowlingTournament");
+    const saved = sessionStorage.getItem("bowlingTournament");
 
     if (saved) {
         try {
             tournament = JSON.parse(saved);
             return true;
         } catch (error) {
-            localStorage.removeItem("bowlingTournament");
+            sessionStorage.removeItem("bowlingTournament");
         }
     }
 
@@ -785,7 +783,7 @@ function renderBracket() {
             }
         </span>
         <span class="score">
-            ${displayScore(match.score1)}
+            ${displayScore(match.score1)}${match.score1 !== null && tournament.scoringType !== "scratch" ? ` → ${getAdjustedScore(match.player1, match.score1)}` : ""}
         </span>
     </div>
 
@@ -799,7 +797,7 @@ function renderBracket() {
             }
         </span>
         <span class="score">
-            ${displayScore(match.score2)}
+            ${displayScore(match.score2)}${match.score2 !== null && tournament.scoringType !== "scratch" ? ` → ${getAdjustedScore(match.player2, match.score2)}` : ""}
         </span>
     </div>
 `;
@@ -994,6 +992,29 @@ function getAdjustedScore(name, score) {
 
 
 
+
+
+function updateAdjustedScorePreview() {
+    if (!activeMatch || !tournament || tournament.scoringType === "scratch") {
+        document.getElementById("adjustedScoreInfo").classList.add("hidden");
+        return;
+    }
+
+    const s1 = document.getElementById("score1").value;
+    const s2 = document.getElementById("score2").value;
+
+    if (s1 === "" || s2 === "") {
+        document.getElementById("adjustedScoreInfo").classList.add("hidden");
+        return;
+    }
+
+    const a1 = getAdjustedScore(activeMatch.player1, Number(s1));
+    const a2 = getAdjustedScore(activeMatch.player2, Number(s2));
+
+    const box = document.getElementById("adjustedScoreInfo");
+    box.innerHTML = `<strong>Adjusted:</strong> ${activeMatch.player1}: ${a1} &nbsp; | &nbsp; ${activeMatch.player2}: ${a2}`;
+    box.classList.remove("hidden");
+}
 
 function saveScore() {
 
@@ -1309,6 +1330,8 @@ function showChampion() {
 
 function resetTournament() {
 
+    localStorage.removeItem("bowlingTournament");
+
     if (
         confirm(
             "Reset all entries and tournament settings?"
@@ -1321,6 +1344,8 @@ function resetTournament() {
 
 
 function newTournament() {
+
+    localStorage.removeItem("bowlingTournament");
 
     if (
         confirm(
