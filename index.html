@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bowling Brackets</title>
+<title>Bowling Bracket</title>
 
 <style>
 * {
@@ -11,95 +11,81 @@
 }
 
 body {
+    margin: 0;
     font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    color: #222;
+}
+
+header {
     background: #111827;
     color: white;
-    margin: 0;
     padding: 20px;
-}
-
-.container {
-    max-width: 1100px;
-    margin: auto;
-}
-
-h1 {
     text-align: center;
-    color: #ff9900;
-    margin-bottom: 25px;
 }
 
-.card {
-    background: #1f2937;
-    border-radius: 12px;
+header h1 {
+    margin: 0 0 8px 0;
+}
+
+.controls {
+    background: white;
     padding: 20px;
-    margin-bottom: 20px;
+    margin: 20px auto;
+    max-width: 1200px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
 }
 
-h2 {
+.controls h2 {
     margin-top: 0;
 }
 
-label {
-    display: block;
-    margin-top: 15px;
-    margin-bottom: 6px;
-    font-weight: bold;
+.player-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
 }
 
-select,
-input {
-    width: 100%;
+.player-grid input {
     padding: 12px;
-    border-radius: 6px;
-    border: 1px solid #4b5563;
-    background: #374151;
-    color: white;
     font-size: 16px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
 }
 
 button {
-    background: #ff9900;
-    color: white;
     border: none;
-    padding: 12px 18px;
     border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 15px;
     cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
 }
 
-button:hover {
-    background: #e68a00;
+.start-btn {
+    margin-top: 15px;
+    background: #2563eb;
+    color: white;
 }
 
-.secondary {
-    background: #4b5563;
+.reset-btn {
+    margin-top: 15px;
+    background: #dc2626;
+    color: white;
+    margin-left: 8px;
 }
 
-.secondary:hover {
-    background: #374151;
-}
-
-.hidden {
-    display: none;
-}
-
-.players-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
+.bracket-wrapper {
+    overflow-x: auto;
+    padding: 20px;
 }
 
 .bracket {
-    overflow-x: auto;
-    padding-bottom: 20px;
-}
-
-.rounds {
     display: flex;
     gap: 30px;
-    min-width: 850px;
+    min-width: 1200px;
+    max-width: 1600px;
+    margin: auto;
 }
 
 .round {
@@ -109,63 +95,88 @@ button:hover {
 
 .round h3 {
     text-align: center;
-    color: #ff9900;
+    margin: 0 0 15px 0;
+}
+
+.matches {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .match {
-    background: #374151;
+    background: white;
     border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 25px;
+    padding: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
 }
 
 .player {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #4b5563;
-    padding: 8px;
-    margin: 4px 0;
-    border-radius: 5px;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    min-height: 38px;
+}
+
+.player:last-of-type {
+    border-bottom: none;
 }
 
 .player.winner {
-    background: #166534;
+    font-weight: bold;
+    background: #dcfce7;
 }
 
-.player input {
-    width: 70px;
-    padding: 6px;
+.player.loser {
+    color: #888;
+}
+
+.score {
+    float: right;
+    font-weight: bold;
 }
 
 .match button {
-    margin-top: 8px;
     width: 100%;
-    font-size: 14px;
+    margin-top: 10px;
+    background: #16a34a;
+    color: white;
 }
 
-.info {
-    background: #374151;
-    padding: 12px;
-    border-radius: 6px;
-    margin-bottom: 15px;
+.match.pending button {
+    background: #2563eb;
 }
 
-.winner-banner {
-    text-align: center;
-    background: #166534;
-    padding: 20px;
+.match.complete {
+    border: 2px solid #16a34a;
+}
+
+.champion {
+    max-width: 600px;
+    margin: 30px auto;
+    background: #fff;
+    padding: 25px;
     border-radius: 10px;
-    margin-top: 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
 
-@media (max-width: 600px) {
-    body {
-        padding: 10px;
-    }
+.champion h2 {
+    margin-top: 0;
+}
 
-    h1 {
-        font-size: 26px;
+.champion-name {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.empty {
+    color: #888;
+    font-style: italic;
+}
+
+@media (max-width: 800px) {
+    .player-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 </style>
@@ -173,186 +184,169 @@ button:hover {
 
 <body>
 
-<div class="container">
+<header>
+    <h1>Bowling Tournament Bracket</h1>
+    <div>16 Player Single Elimination</div>
+</header>
 
-<h1>🎳 Bowling Brackets</h1>
+<section class="controls">
 
-<div id="setup" class="card">
+    <h2>Players</h2>
 
-    <h2>Tournament Setup</h2>
+    <div class="player-grid" id="playerInputs"></div>
 
-    <label for="bracketSize">Bracket Size</label>
-    <select id="bracketSize">
-        <option value="4">4 Players</option>
-        <option value="8" selected>8 Players</option>
-        <option value="16">16 Players</option>
-    </select>
-
-    <label for="bracketType">Bracket Type</label>
-    <select id="bracketType">
-        <option value="handicap">Handicap</option>
-        <option value="scratch">Scratch</option>
-    </select>
-
-    <label for="tiebreaker">Tiebreaker</label>
-    <select id="tiebreaker">
-        <option value="highest">Highest Game</option>
-        <option value="total">Total Pins</option>
-        <option value="head">Head-to-Head</option>
-    </select>
-
-    <br><br>
-
-    <button onclick="createTournament()">Create Tournament</button>
-
-</div>
-
-<div id="players" class="card hidden">
-
-    <h2>Enter Players</h2>
-
-    <div id="playerInputs" class="players-grid"></div>
-
-    <br>
-
-    <button onclick="startTournament()">Start Tournament</button>
-    <button class="secondary" onclick="backToSetup()">Back</button>
-
-</div>
-
-<div id="tournament" class="hidden">
-
-    <div class="card">
-
-        <div class="info">
-            <strong>Bracket:</strong>
-            <span id="typeDisplay"></span>
-            &nbsp; | &nbsp;
-            <strong>Tiebreaker:</strong>
-            <span id="tieDisplay"></span>
-        </div>
-
-        <div class="bracket">
-            <div id="rounds" class="rounds"></div>
-        </div>
-
-    </div>
-
-    <button class="secondary" onclick="newTournament()">
-        New Tournament
+    <button class="start-btn" onclick="startTournament()">
+        Start Tournament
     </button>
 
-</div>
+    <button class="reset-btn" onclick="resetTournament()">
+        Reset
+    </button>
 
+</section>
+
+<div id="championArea"></div>
+
+<div class="bracket-wrapper">
+    <div class="bracket" id="bracket"></div>
 </div>
 
 <script>
 
-let tournamentSize = 8;
-let bracketType = "handicap";
-let tiebreaker = "highest";
+const PLAYER_COUNT = 16;
+
 let players = [];
-let matches = [];
+let rounds = [];
+let tournamentStarted = false;
 
-function createTournament() {
 
-    tournamentSize =
-        parseInt(document.getElementById("bracketSize").value);
+/* ---------------------------------
+   CREATE PLAYER INPUTS
+---------------------------------- */
 
-    bracketType =
-        document.getElementById("bracketType").value;
+function createPlayerInputs() {
 
-    tiebreaker =
-        document.getElementById("tiebreaker").value;
+    const container = document.getElementById("playerInputs");
 
-    const playerInputs =
-        document.getElementById("playerInputs");
+    container.innerHTML = "";
 
-    playerInputs.innerHTML = "";
-
-    for (let i = 0; i < tournamentSize; i++) {
+    for (let i = 0; i < PLAYER_COUNT; i++) {
 
         const input = document.createElement("input");
 
         input.type = "text";
         input.placeholder = "Player " + (i + 1);
-        input.id = "player" + i;
+        input.id = "player-" + i;
 
-        playerInputs.appendChild(input);
+        container.appendChild(input);
     }
-
-    document.getElementById("setup").classList.add("hidden");
-    document.getElementById("players").classList.remove("hidden");
 }
+
+
+/* ---------------------------------
+   START TOURNAMENT
+---------------------------------- */
 
 function startTournament() {
 
     players = [];
 
-    for (let i = 0; i < tournamentSize; i++) {
+    for (let i = 0; i < PLAYER_COUNT; i++) {
 
-        const name =
-            document.getElementById("player" + i).value.trim();
+        const input = document.getElementById("player-" + i);
+
+        let name = input.value.trim();
 
         if (!name) {
-            alert("Please enter a name for every player.");
-            return;
+            name = "Player " + (i + 1);
         }
 
         players.push({
-            name: name,
-            score: null,
-            highest: null
+            id: i,
+            name: name
         });
     }
 
-    document.getElementById("players").classList.add("hidden");
-    document.getElementById("tournament").classList.remove("hidden");
+    createRounds();
 
-    document.getElementById("typeDisplay").textContent =
-        bracketType === "handicap" ? "Handicap" : "Scratch";
-
-    let tieText = "Highest Game";
-
-    if (tiebreaker === "total")
-        tieText = "Total Pins";
-
-    if (tiebreaker === "head")
-        tieText = "Head-to-Head";
-
-    document.getElementById("tieDisplay").textContent = tieText;
-
-    buildBracket();
-}
-
-function buildBracket() {
-
-    matches = [];
-
-    for (let i = 0; i < players.length; i += 2) {
-
-        matches.push({
-            player1: players[i],
-            player2: players[i + 1],
-            winner: null
-        });
-    }
+    tournamentStarted = true;
 
     renderBracket();
 }
 
+
+/* ---------------------------------
+   CREATE BRACKET
+---------------------------------- */
+
+function createRounds() {
+
+    rounds = [];
+
+    // Round 1
+    const round1 = [];
+
+    for (let i = 0; i < 16; i += 2) {
+
+        round1.push({
+            player1: players[i],
+            player2: players[i + 1],
+            score1: null,
+            score2: null,
+            winner: null
+        });
+    }
+
+    rounds.push(round1);
+
+    // Round 2
+    rounds.push(createEmptyRound(4));
+
+    // Semifinal
+    rounds.push(createEmptyRound(2));
+
+    // Championship
+    rounds.push(createEmptyRound(1));
+}
+
+
+function createEmptyRound(count) {
+
+    const result = [];
+
+    for (let i = 0; i < count; i++) {
+
+        result.push({
+            player1: null,
+            player2: null,
+            score1: null,
+            score2: null,
+            winner: null
+        });
+    }
+
+    return result;
+}
+
+
+/* ---------------------------------
+   RENDER BRACKET
+---------------------------------- */
+
 function renderBracket() {
 
-    const roundsContainer =
-        document.getElementById("rounds");
+    const bracket = document.getElementById("bracket");
 
-    roundsContainer.innerHTML = "";
+    bracket.innerHTML = "";
 
-    let currentMatches = matches;
+    const names = [
+        "Round 1",
+        "Quarterfinals",
+        "Semifinals",
+        "Championship"
+    ];
 
-    let roundNumber = 1;
-
-    while (currentMatches.length > 0) {
+    rounds.forEach((round, roundIndex) => {
 
         const roundDiv = document.createElement("div");
 
@@ -360,323 +354,335 @@ function renderBracket() {
 
         const title = document.createElement("h3");
 
-        if (currentMatches.length === 1) {
-            title.textContent = "Championship";
-        } else {
-            title.textContent = "Round " + roundNumber;
-        }
+        title.textContent = names[roundIndex];
 
         roundDiv.appendChild(title);
 
-        currentMatches.forEach((match, index) => {
+        const matchesDiv = document.createElement("div");
 
-            const matchDiv =
-                document.createElement("div");
+        matchesDiv.className = "matches";
 
-            matchDiv.className = "match";
+        round.forEach((match, matchIndex) => {
 
-            const p1 =
-                createPlayerRow(match.player1);
+            const matchDiv = createMatchDiv(
+                match,
+                roundIndex,
+                matchIndex
+            );
 
-            const p2 =
-                createPlayerRow(match.player2);
-
-            matchDiv.appendChild(p1);
-            matchDiv.appendChild(p2);
-
-            if (!match.player1 &&
-                match.player2 &&
-                !match.winner) {
-
-                const button =
-                    document.createElement("button");
-
-                button.textContent = "Enter Scores";
-
-                button.onclick = function() {
-                    enterScores(match);
-                };
-
-                matchDiv.appendChild(button);
-            }
-
-            if (match.winner) {
-
-                const result =
-                    document.createElement("div");
-
-                result.style.marginTop = "10px";
-                result.style.textAlign = "center";
-                result.innerHTML =
-                    "<strong>Winner: " +
-                    match.winner.name +
-                    "</strong>";
-
-                matchDiv.appendChild(result);
-            }
-
-            roundDiv.appendChild(matchDiv);
+            matchesDiv.appendChild(matchDiv);
         });
 
-        roundsContainer.appendChild(roundDiv);
+        roundDiv.appendChild(matchesDiv);
 
-        if (currentMatches.length === 1)
-            break;
+        bracket.appendChild(roundDiv);
+    });
 
-        const nextMatches = [];
-
-        for (let i = 0; i < currentMatches.length; i += 2) {
-
-            nextMatches.push({
-                player1:
-                    currentMatches[i].winner || null,
-
-                player2:
-                    currentMatches[i + 1]
-                        ? currentMatches[i + 1].winner || null
-                        : null,
-
-                winner: null
-            });
-        }
-
-        currentMatches = nextMatches;
-
-        roundNumber++;
-    }
-
-    checkChampion();
+    showChampion();
 }
 
-function createPlayerRow(player) {
 
-    const row =
-        document.createElement("div");
+/* ---------------------------------
+   CREATE MATCH
+---------------------------------- */
 
-    row.className = "player";
+function createMatchDiv(match, roundIndex, matchIndex) {
 
-    if (!player)
-        row.innerHTML = "<span>Waiting...</span>";
-    else
-        row.innerHTML =
-            "<span>" + player.name + "</span>";
+    const div = document.createElement("div");
 
-    return row;
+    div.className = "match";
+
+    if (!match.player1 || !match.player2) {
+        div.classList.add("pending");
+    }
+
+    if (match.winner) {
+        div.classList.add("complete");
+    }
+
+    const p1 = document.createElement("div");
+
+    p1.className = "player";
+
+    if (match.winner === match.player1) {
+        p1.classList.add("winner");
+    }
+
+    if (match.winner && match.winner !== match.player1) {
+        p1.classList.add("loser");
+    }
+
+    p1.innerHTML = match.player1
+        ? escapeHtml(match.player1.name)
+        : '<span class="empty">Waiting...</span>';
+
+    if (match.score1 !== null) {
+        p1.innerHTML +=
+            '<span class="score">' +
+            match.score1 +
+            '</span>';
+    }
+
+
+    const p2 = document.createElement("div");
+
+    p2.className = "player";
+
+    if (match.winner === match.player2) {
+        p2.classList.add("winner");
+    }
+
+    if (match.winner && match.winner !== match.player2) {
+        p2.classList.add("loser");
+    }
+
+    p2.innerHTML = match.player2
+        ? escapeHtml(match.player2.name)
+        : '<span class="empty">Waiting...</span>';
+
+    if (match.score2 !== null) {
+        p2.innerHTML +=
+            '<span class="score">' +
+            match.score2 +
+            '</span>';
+    }
+
+
+    div.appendChild(p1);
+    div.appendChild(p2);
+
+
+    if (match.player1 && match.player2 && !match.winner) {
+
+        const button = document.createElement("button");
+
+        button.textContent = "Enter Scores";
+
+        button.onclick = function() {
+
+            enterScores(match, roundIndex, matchIndex);
+
+        };
+
+        div.appendChild(button);
+    }
+
+
+    return div;
 }
 
-function enterScores(match) {
 
-    if (!match.player1 || !match.player2)
-        return;
+/* ---------------------------------
+   ENTER SCORES
+---------------------------------- */
 
-    let score1 =
-        prompt("Enter score for " + match.player1.name);
+function enterScores(match, roundIndex, matchIndex) {
 
-    if (score1 === null)
-        return;
+    const name1 = match.player1.name;
+    const name2 = match.player2.name;
 
-    let score2 =
-        prompt("Enter score for " + match.player2.name);
+    let score1 = prompt(
+        "Enter score for " + name1 + ":"
+    );
 
-    if (score2 === null)
-        return;
-
-    score1 = parseInt(score1);
-    score2 = parseInt(score2);
-
-    if (isNaN(score1) || isNaN(score2)) {
-        alert("Please enter valid scores.");
+    if (score1 === null) {
         return;
     }
 
-    match.player1.score = score1;
-    match.player2.score = score2;
+    let score2 = prompt(
+        "Enter score for " + name2 + ":"
+    );
 
-    let winner;
+    if (score2 === null) {
+        return;
+    }
+
+    score1 = Number(score1);
+    score2 = Number(score2);
+
+    if (
+        !Number.isFinite(score1) ||
+        !Number.isFinite(score2) ||
+        score1 < 0 ||
+        score2 < 0 ||
+        score1 > 300 ||
+        score2 > 300
+    ) {
+
+        alert("Please enter valid bowling scores from 0 to 300.");
+
+        return;
+    }
+
+
+    match.score1 = score1;
+    match.score2 = score2;
+
 
     if (score1 > score2) {
 
-        winner = match.player1;
+        match.winner = match.player1;
 
-    } else if (score2 > score1) {
+    }
+    else if (score2 > score1) {
 
-        winner = match.player2;
+        match.winner = match.player2;
 
-    } else {
+    }
+    else {
 
-        winner = resolveTie(match);
+        // Tie
+        const choice = prompt(
+            "Scores are tied.\n\n" +
+            "Enter 1 for " + name1 + "\n" +
+            "Enter 2 for " + name2
+        );
+
+        if (choice === "1") {
+
+            match.winner = match.player1;
+
+        }
+        else if (choice === "2") {
+
+            match.winner = match.player2;
+
+        }
+        else {
+
+            alert("No winner selected. Please enter the scores again.");
+
+            match.score1 = null;
+            match.score2 = null;
+
+            return;
+        }
     }
 
-    if (!winner)
-        return;
 
-    match.winner = winner;
-
-    updateFutureRounds();
+    advanceWinner(roundIndex, matchIndex);
 
     renderBracket();
 }
 
-function resolveTie(match) {
 
-    if (tiebreaker === "head") {
+/* ---------------------------------
+   ADVANCE WINNER
+---------------------------------- */
 
-        alert(
-            "Scores are tied. Head-to-head tiebreaker selected. " +
-            "Please enter the winner manually."
-        );
+function advanceWinner(roundIndex, matchIndex) {
 
-        return manualWinner(match);
-    }
+    const winner = rounds[roundIndex][matchIndex].winner;
 
-    if (tiebreaker === "highest") {
-
-        const high1 =
-            parseInt(prompt(
-                "Tie game.\nEnter highest game for " +
-                match.player1.name
-            ));
-
-        const high2 =
-            parseInt(prompt(
-                "Enter highest game for " +
-                match.player2.name
-            ));
-
-        if (isNaN(high1) || isNaN(high2)) {
-            alert("Invalid tiebreaker scores.");
-            return null;
-        }
-
-        if (high1 > high2)
-            return match.player1;
-
-        if (high2 > high1)
-            return match.player2;
-
-        return manualWinner(match);
-    }
-
-    if (tiebreaker === "total") {
-
-        const total1 =
-            parseInt(prompt(
-                "Tie game.\nEnter total pins for " +
-                match.player1.name
-            ));
-
-        const total2 =
-            parseInt(prompt(
-                "Enter total pins for " +
-                match.player2.name
-            ));
-
-        if (isNaN(total1) || isNaN(total2)) {
-            alert("Invalid tiebreaker scores.");
-            return null;
-        }
-
-        if (total1 > total2)
-            return match.player1;
-
-        if (total2 > total1)
-            return match.player2;
-
-        return manualWinner(match);
-    }
-}
-
-function manualWinner(match) {
-
-    const choice =
-        prompt(
-            "Scores are still tied.\n\n" +
-            "Enter 1 for " + match.player1.name +
-            "\nEnter 2 for " + match.player2.name
-        );
-
-    if (choice === "1")
-        return match.player1;
-
-    if (choice === "2")
-        return match.player2;
-
-    alert("No winner selected.");
-    return null;
-}
-
-function updateFutureRounds() {
-
-    const allMatches = [];
-
-    function collectRound(roundMatches) {
-
-        roundMatches.forEach(m => {
-            allMatches.push(m);
-        });
-    }
-
-    collectRound(matches);
-
-    let current = matches;
-
-    while (current.length > 1) {
-
-        const next = [];
-
-        for (let i = 0; i < current.length; i += 2) {
-
-            next.push({
-                player1: current[i].winner,
-                player2:
-                    current[i + 1]
-                        ? current[i + 1].winner
-                        : null,
-                winner: null
-            });
-        }
-
-        next.forEach(m => allMatches.push(m));
-
-        current = next;
-    }
-
-    matches = allMatches.slice(0, tournamentSize - 1);
-}
-
-function checkChampion() {
-
-    const champion =
-        matches.find(
-            m => m.player1 &&
-                 m.player2 &&
-                 m.winner
-        );
-
-    if (!champion)
+    if (!winner) {
         return;
+    }
+
+
+    // Championship
+    if (roundIndex === 3) {
+        return;
+    }
+
+
+    const nextMatchIndex = Math.floor(matchIndex / 2);
+
+    const nextMatch = rounds[roundIndex + 1][nextMatchIndex];
+
+
+    if (matchIndex % 2 === 0) {
+
+        nextMatch.player1 = winner;
+
+    } else {
+
+        nextMatch.player2 = winner;
+
+    }
+
+
+    // Clear any old score/winner in the next match
+    nextMatch.score1 = null;
+    nextMatch.score2 = null;
+    nextMatch.winner = null;
 }
 
-function backToSetup() {
 
-    document.getElementById("players")
-        .classList.add("hidden");
+/* ---------------------------------
+   CHAMPION
+---------------------------------- */
 
-    document.getElementById("setup")
-        .classList.remove("hidden");
+function showChampion() {
+
+    const area = document.getElementById("championArea");
+
+    area.innerHTML = "";
+
+    if (!rounds.length) {
+        return;
+    }
+
+    const finalMatch = rounds[3][0];
+
+    if (!finalMatch.winner) {
+        return;
+    }
+
+    const div = document.createElement("div");
+
+    div.className = "champion";
+
+    div.innerHTML =
+        "<h2>🏆 Tournament Champion</h2>" +
+        '<div class="champion-name">' +
+        escapeHtml(finalMatch.winner.name) +
+        "</div>";
+
+    area.appendChild(div);
 }
 
-function newTournament() {
+
+/* ---------------------------------
+   RESET
+---------------------------------- */
+
+function resetTournament() {
+
+    if (!confirm("Reset the tournament?")) {
+        return;
+    }
 
     players = [];
-    matches = [];
+    rounds = [];
+    tournamentStarted = false;
 
-    document.getElementById("tournament")
-        .classList.add("hidden");
+    document.getElementById("bracket").innerHTML = "";
+    document.getElementById("championArea").innerHTML = "";
 
-    document.getElementById("setup")
-        .classList.remove("hidden");
+    createPlayerInputs();
 }
+
+
+/* ---------------------------------
+   HTML SAFETY
+---------------------------------- */
+
+function escapeHtml(text) {
+
+    return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* ---------------------------------
+   INITIALIZE
+---------------------------------- */
+
+createPlayerInputs();
 
 </script>
 
