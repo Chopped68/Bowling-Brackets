@@ -39,6 +39,39 @@ header p {
     padding: 0 15px;
 }
 
+
+.multi-manager {
+    margin-bottom: 20px;
+}
+.multi-manager .manager-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+}
+.multi-manager .manager-controls > div {
+    min-width: 180px;
+}
+.multi-bracket-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    margin-top: 10px;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+.multi-bracket-row .bracket-name {
+    min-width: 180px;
+    font-weight: bold;
+}
+.multi-bracket-row .bracket-meta {
+    flex: 1;
+    min-width: 190px;
+}
+
 .panel {
     background: white;
     border-radius: 10px;
@@ -302,7 +335,32 @@ button:hover {
 
 <div class="container">
 
-    <div id="setupPanel" class="panel">
+    
+<section id="multiManager" class="panel multi-manager">
+    <h2>Bracket Manager</h2>
+    <p class="info">
+        Create multiple independent 8-spot brackets. Each bracket has its own
+        scoring type. A bowler can be entered in more than one bracket.
+    </p>
+    <div class="manager-controls">
+        <div>
+            <label>Bracket Name</label>
+            <input id="multiBracketName" type="text" placeholder="Handicap #1">
+        </div>
+        <div>
+            <label>Scoring Type</label>
+            <select id="multiBracketType">
+                <option value="handicap">Handicap</option>
+                <option value="scratch">Scratch</option>
+                <option value="reverse">Reverse Scratch</option>
+            </select>
+        </div>
+        <button class="primary" type="button" onclick="createManagedBracket()">+ Add 8-Spot Bracket</button>
+    </div>
+    <div id="managedBracketList"></div>
+</section>
+
+<div id="setupPanel" class="panel">
 
         <h2>Tournament Setup</h2>
 
@@ -403,7 +461,7 @@ button:hover {
         </div>
 
         <div class="actions">
-            <button class="secondary" onclick="newTournament()">New Tournament</button>
+            <button class="secondary" onclick="newTournament()">Back to Brackets</button>
         </div>
 
     </div>
@@ -1368,12 +1426,187 @@ function newTournament() {
 document.getElementById("saveScoreButton").addEventListener("click", saveScore);
 
 if (loadTournament()) {
+    const savedActive = managedBrackets().find(b => b.tournament &&
+        JSON.stringify(b.tournament) === JSON.stringify(tournament));
+    if (savedActive) activeManagedBracketId = savedActive.id;
+
     document.getElementById("setupPanel").classList.add("hidden");
     document.getElementById("tournamentPanel").classList.remove("hidden");
     renderBracket();
 } else {
     createPlayerInputs();
+    renderManagedBrackets();
 }
+
+/* ===== Multiple independent bracket manager ===== */
+const MANAGED_BRACKETS_KEY = "bowlingManagedBrackets";
+let activeManagedBracketId = null;
+
+function managedBrackets() {
+    try {
+        return JSON.parse(localStorage.getItem(MANAGED_BRACKETS_KEY) || "[]");
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveManagedBrackets(list) {
+    localStorage.setItem(MANAGED_BRACKETS_KEY, JSON.stringify(list));
+}
+
+function scoringLabel(type) {
+    return type === "handicap" ? "Handicap" :
+           type === "scratch" ? "Scratch" : "Reverse Scratch";
+}
+
+function createManagedBracket() {
+    const type = document.getElementById("multiBracketType").value;
+    const nameInput = document.getElementById("multiBracketName");
+    const list = managedBrackets();
+
+    const sameType = list.filter(b => b.type === type).length;
+    const defaultName = `${scoringLabel(type)} #${sameType + 1}`;
+    const name = nameInput.value.trim() || defaultName;
+
+    const bracket = {
+        id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        name: name,
+        type: type,
+        spots: 8,
+        tournament: null
+    };
+
+    list.push(bracket);
+    saveManagedBrackets(list);
+    nameInput.value = "";
+    renderManagedBrackets();
+    openManagedBracket(bracket.id);
+}
+
+function renderManagedBrackets() {
+    const box = document.getElementById("managedBracketList");
+    if (!box) return;
+
+    const list = managedBrackets();
+
+    if (!list.length) {
+        box.innerHTML = '<p class="muted">No brackets created yet. Add your first 8-spot bracket above.</p>';
+        return;
+    }
+
+    box.innerHTML = list.map(b => {
+        const entries = b.tournament
+            ? b.tournament.names.filter(n => n && n.trim()).length
+            : 0;
+        const status = b.tournament && b.tournament.champion
+            ? `Champion: ${escapeHtml(b.tournament.champion)}`
+            : `${entries}/8 entries`;
+
+        return `
+        <div class="multi-bracket-row">
+            <span class="bracket-name">${escapeHtml(b.name)}</span>
+            <span class="bracket-meta">${scoringLabel(b.type)} · 8 spots · ${status}</span>
+            <button type="button" onclick="openManagedBracket('${b.id}')">Open</button>
+            <button type="button" class="danger" onclick="deleteManagedBracket('${b.id}')">Delete</button>
+        </div>`;
+    }).join("");
+}
+
+function deleteManagedBracket(id) {
+    const list = managedBrackets();
+    const b = list.find(x => x.id === id);
+    if (!b) return;
+
+    if (!confirm(`Delete ${b.name}? This removes that bracket and its scores.`)) return;
+
+    saveManagedBrackets(list.filter(x => x.id !== id));
+
+    if (activeManagedBracketId === id) {
+        activeManagedBracketId = null;
+        tournament = null;
+        sessionStorage.removeItem("bowlingTournament");
+        document.getElementById("tournamentPanel").classList.add("hidden");
+        document.getElementById("setupPanel").classList.remove("hidden");
+    }
+
+    renderManagedBrackets();
+}
+
+function openManagedBracket(id) {
+    const b = managedBrackets().find(x => x.id === id);
+    if (!b) return;
+
+    activeManagedBracketId = id;
+
+    document.getElementById("playerCount").value = "8";
+    document.getElementById("scoringType").value = b.type;
+    createPlayerInputs();
+
+    if (b.tournament) {
+        tournament = b.tournament;
+        sessionStorage.setItem("bowlingTournament", JSON.stringify(tournament));
+        document.getElementById("setupPanel").classList.add("hidden");
+        document.getElementById("tournamentPanel").classList.remove("hidden");
+        renderBracket();
+    } else {
+        tournament = null;
+        sessionStorage.removeItem("bowlingTournament");
+        document.getElementById("tournamentPanel").classList.add("hidden");
+        document.getElementById("setupPanel").classList.remove("hidden");
+    }
+
+    window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+function saveActiveManagedBracket() {
+    if (!activeManagedBracketId || !tournament) return;
+
+    const list = managedBrackets();
+    const b = list.find(x => x.id === activeManagedBracketId);
+    if (!b) return;
+
+    b.tournament = tournament;
+    b.type = tournament.scoringType;
+    b.spots = 8;
+    saveManagedBrackets(list);
+    renderManagedBrackets();
+}
+
+/* Replace the normal save with a wrapper that also snapshots the active bracket. */
+const originalSaveTournament = saveTournament;
+saveTournament = function() {
+    originalSaveTournament();
+    saveActiveManagedBracket();
+};
+
+/* Make a new tournament return to the bracket manager instead of deleting all brackets. */
+const originalNewTournament = newTournament;
+newTournament = function() {
+    if (!confirm("Return to the bracket list? The current bracket will be saved.")) return;
+
+    saveActiveManagedBracket();
+    tournament = null;
+    sessionStorage.removeItem("bowlingTournament");
+
+    document.getElementById("tournamentPanel").classList.add("hidden");
+    document.getElementById("setupPanel").classList.remove("hidden");
+    document.getElementById("scoringType").value =
+        (managedBrackets().find(b => b.id === activeManagedBracketId) || {}).type || "handicap";
+    createPlayerInputs();
+    renderManagedBrackets();
+    window.scrollTo({top:0, behavior:"smooth"});
+};
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    }[c]));
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    renderManagedBrackets();
+});
+
 </script>
 
 </body>
