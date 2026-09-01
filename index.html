@@ -987,23 +987,7 @@ function getAdjustedScore(name, score) {
 }
 
 
-function getAdjustedScore(score) {
 
-    const handicap =
-        calculateHandicap(score);
-
-    if (tournament.scoringType === "handicap") {
-
-        return score + handicap;
-    }
-
-    if (tournament.scoringType === "reverse") {
-
-        return score - handicap;
-    }
-
-    return score;
-}
 
 
 function saveScore() {
@@ -1050,8 +1034,8 @@ function saveScore() {
         return;
     }
 
-    const adjusted1 = getAdjustedScore(score1);
-    const adjusted2 = getAdjustedScore(score2);
+    const adjusted1 = getAdjustedScore(activeMatch.player1, score1);
+const adjusted2 = getAdjustedScore(activeMatch.player2, score2);
 
     if (adjusted1 > adjusted2) {
         finishMatch(activeMatch, activeMatch.player1);
