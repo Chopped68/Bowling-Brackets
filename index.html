@@ -384,9 +384,9 @@ function renderBracket() {
             matchDiv.appendChild(p1);
             matchDiv.appendChild(p2);
 
-            if (!match.winner &&
-                match.player1 &&
-                match.player2) {
+            if (!match.player1 &&
+                match.player2 &&
+                !match.winner) {
 
                 const button =
                     document.createElement("button");
