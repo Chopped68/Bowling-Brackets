@@ -1,4 +1,4 @@
-f<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,12 +11,11 @@ f<!DOCTYPE html>
 }
 
 body {
-    margin: 0FF
+    margin: 0;
     font-family: Arial, sans-serif;
-    background: #f3f4f6;f
+    background: #f3f4f6;
     color: #222;
 }
-f
 header {
     background: #111827;
     color: white;FFf
@@ -460,7 +459,7 @@ button:hover {
         </div>
 
         <div class="actions">
-            <button type="button" class="success" onclick="saveScore()">Save Score</button>
+            <button type="button" id="saveScoreButton" class="success">Save Score</button>
             <button class="secondary" onclick="closeScoreModal()">Cancel</button>
         </div>
 
@@ -711,7 +710,13 @@ function processByes() {
 
     firstRound.forEach(match => {
 
-        if (match.player1 && !match.player2) {
+        if (!match.player1 && !match.player2) {
+
+            match.winner = null;
+            match.completed = true;
+            match.bye = true;
+
+        } else if (match.player1 && !match.player2) {
 
             match.winner = match.player1;
             match.completed = true;
@@ -1324,6 +1329,7 @@ function newTournament() {
     ) {
 
         tournament = null;
+        localStorage.removeItem("bowlingTournament");
 
         document.getElementById("tournamentPanel")
             .classList.add("hidden");
@@ -1334,6 +1340,8 @@ function newTournament() {
         createPlayerInputs();
     }
 }
+document.getElementById("saveScoreButton").addEventListener("click", saveScore);
+
 if (loadTournament()) {
     document.getElementById("setupPanel").classList.add("hidden");
     document.getElementById("tournamentPanel").classList.remove("hidden");
