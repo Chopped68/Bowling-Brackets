@@ -1425,18 +1425,7 @@ function newTournament() {
 }
 document.getElementById("saveScoreButton").addEventListener("click", saveScore);
 
-if (loadTournament()) {
-    const savedActive = managedBrackets().find(b => b.tournament &&
-        JSON.stringify(b.tournament) === JSON.stringify(tournament));
-    if (savedActive) activeManagedBracketId = savedActive.id;
 
-    document.getElementById("setupPanel").classList.add("hidden");
-    document.getElementById("tournamentPanel").classList.remove("hidden");
-    renderBracket();
-} else {
-    createPlayerInputs();
-    renderManagedBrackets();
-}
 
 /* ===== Multiple independent bracket manager ===== */
 const MANAGED_BRACKETS_KEY = "bowlingManagedBrackets";
@@ -1606,7 +1595,27 @@ function escapeHtml(s) {
 document.addEventListener("DOMContentLoaded", function() {
     renderManagedBrackets();
 });
+document.getElementById("saveScoreButton").addEventListener("click", saveScore);
 
+document.addEventListener("DOMContentLoaded", function() {
+    if (loadTournament()) {
+        const savedActive = managedBrackets().find(b =>
+            b.tournament &&
+            JSON.stringify(b.tournament) === JSON.stringify(tournament)
+        );
+
+        if (savedActive) {
+            activeManagedBracketId = savedActive.id;
+        }
+
+        document.getElementById("setupPanel").classList.add("hidden");
+        document.getElementById("tournamentPanel").classList.remove("hidden");
+        renderBracket();
+    } else {
+        createPlayerInputs();
+        renderManagedBrackets();
+    }
+});
 </script>
 
 </body>
