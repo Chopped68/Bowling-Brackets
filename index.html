@@ -472,6 +472,29 @@ button:hover {
 let tournament = null;
 let activeMatch = null;
 
+function saveTournament() {
+    if (tournament) {
+        localStorage.setItem(
+            "bowlingTournament",
+            JSON.stringify(tournament)
+        );
+    }
+}
+
+function loadTournament() {
+    const saved = localStorage.getItem("bowlingTournament");
+
+    if (saved) {
+        try {
+            tournament = JSON.parse(saved);
+            return true;
+        } catch (error) {
+            localStorage.removeItem("bowlingTournament");
+        }
+    }
+
+    return false;
+}
 const playersGrid = document.getElementById("playersGrid");
 
 function createPlayerInputs() {
