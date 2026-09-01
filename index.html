@@ -765,26 +765,39 @@ function renderBracket() {
                 document.createElement("div");
 
             matchDiv.className = "match";
+  matchDiv.innerHTML = `
+    <div class="match-title">
+        Match ${matchIndex + 1}
+    </div>
 
-            matchDiv.innerHTML = `
-                <div class="match-title">
-                    Match ${matchIndex + 1}
-                </div>
+    <div class="bowler ${match.winner === match.player1 ? "winner" : ""}">
+        <span>
+            ${match.player1 || "BYE"}
+            ${
+                match.player1 && tournament.scoringType === "handicap"
+                    ? `<small> (HDCP ${calculateHandicap(match.player1)})</small>`
+                    : ""
+            }
+        </span>
+        <span class="score">
+            ${displayScore(match.score1)}
+        </span>
+    </div>
 
-                <div class="bowler ${match.winner === match.player1 ? "winner" : ""}">
-                    <span>${match.player1 || "BYE"}</span>
-                    <span class="score">
-                        ${displayScore(match.score1)}
-                    </span>
-                </div>
-
-                <div class="bowler ${match.winner === match.player2 ? "winner" : ""}">
-                    <span>${match.player2 || "BYE"}</span>
-                    <span class="score">
-                        ${displayScore(match.score2)}
-                    </span>
-                </div>
-            `;
+    <div class="bowler ${match.winner === match.player2 ? "winner" : ""}">
+        <span>
+            ${match.player2 || "BYE"}
+            ${
+                match.player2 && tournament.scoringType === "handicap"
+                    ? `<small> (HDCP ${calculateHandicap(match.player2)})</small>`
+                    : ""
+            }
+        </span>
+        <span class="score">
+            ${displayScore(match.score2)}
+        </span>
+    </div>
+`;
 
             if (match.bye) {
 
@@ -929,16 +942,48 @@ function closeScoreModal() {
 }
 
 
-function calculateHandicap(score) {
+function getBowlerAverage(name) {
+    const index = tournament.names.findIndex(
+        n => n && n.toLowerCase() === name.toLowerCase()
+    );
+
+    if (index === -1) {
+        return 0;
+    }
+
+    return Number(tournament.averages[index]) || 0;
+}
+
+function calculateHandicap(name) {
 
     if (tournament.scoringType === "scratch") {
         return 0;
     }
 
-    return Math.round(
-        (tournament.handicapBase - score) *
-        (tournament.handicapPercent / 100)
+    const average = getBowlerAverage(name);
+
+    return Math.max(
+        0,
+        Math.round(
+            (tournament.handicapBase - average) *
+            (tournament.handicapPercent / 100)
+        )
     );
+}
+
+function getAdjustedScore(name, score) {
+
+    const handicap = calculateHandicap(name);
+
+    if (tournament.scoringType === "handicap") {
+        return score + handicap;
+    }
+
+    if (tournament.scoringType === "reverse") {
+        return score - handicap;
+    }
+
+    return score;
 }
 
 
