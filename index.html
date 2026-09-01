@@ -893,20 +893,17 @@ function saveScore() {
     const score2Value =
         document.getElementById("score2").value;
 
-    if (score1Value === "" && score2Value === "") {
-        alert("Enter at least one score.");
+    if (score1Value === "" || score2Value === "") {
+        alert("Both players' scores are required.");
         return;
     }
 
-    const score1 =
-        score1Value === "" ? null : Number(score1Value);
-
-    const score2 =
-        score2Value === "" ? null : Number(score2Value);
+    const score1 = Number(score1Value);
+    const score2 = Number(score2Value);
 
     if (
-        (score1 !== null && (score1 < 0 || score1 > 300)) ||
-        (score2 !== null && (score2 < 0 || score2 > 300))
+        score1 < 0 || score1 > 300 ||
+        score2 < 0 || score2 > 300
     ) {
         alert("Bowling scores must be between 0 and 300.");
         return;
@@ -928,23 +925,9 @@ function saveScore() {
         return;
     }
 
-    if (score1 === null || score2 === null) {
-        alert(
-            "Only one score was entered. " +
-            "Choose the winner from the Winner box."
-        );
-        return;
-    }
+    const adjusted1 = getAdjustedScore(score1);
+    const adjusted2 = getAdjustedScore(score2);
 
-    const adjusted1 =
-        getAdjustedScore(score1);
-
-    const adjusted2 =
-        getAdjustedScore(score2);
-
-    /*
-       Normal score determines the winner.
-    */
     if (adjusted1 > adjusted2) {
         finishMatch(activeMatch, activeMatch.player1);
         return;
@@ -956,11 +939,10 @@ function saveScore() {
     }
 
     /*
-       Scores are tied.
-       If 9th & 10th frame tiebreaker is selected,
-       check whether the tiebreaker scores have already
-       been entered.
+       NORMAL SCORES ARE TIED.
+       USE THE 9TH & 10TH FRAME TIE BREAKER.
     */
+
     if (tournament.tieBreaker === "ninthtenth") {
 
         const tie1Value =
@@ -970,7 +952,8 @@ function saveScore() {
             document.getElementById("tie2").value;
 
         /*
-           First time we reach the tie, show the fields.
+           First time we reach the tie:
+           show the tie-breaker fields.
         */
         if (tie1Value === "" || tie2Value === "") {
 
@@ -988,21 +971,21 @@ function saveScore() {
         const tie2 = Number(tie2Value);
 
         if (
-            isNaN(tie1) ||
-            isNaN(tie2) ||
-            tie1 < 0 ||
-            tie1 > 50 ||
-            tie2 < 0 ||
-            tie2 > 50
+            tie1 < 0 || tie1 > 50 ||
+            tie2 < 0 || tie2 > 50
         ) {
             alert(
-                "Enter valid 9th and 10th frame scores between 0 and 50."
+                "Enter valid combined 9th and 10th frame scores."
             );
             return;
         }
 
         activeMatch.tie1 = tie1;
         activeMatch.tie2 = tie2;
+
+        /*
+           9th + 10th frame decides the match.
+        */
 
         if (tie1 > tie2) {
             finishMatch(
@@ -1020,9 +1003,13 @@ function saveScore() {
             return;
         }
 
+        /*
+           If the tie-breaker is also tied,
+           require the operator to select the winner.
+        */
+
         alert(
-            "The 9th and 10th frame scores are also tied. " +
-            "Choose the winner from the Winner box."
+            "The 9th and 10th frame scores are also tied. Choose the winner from the Winner box."
         );
 
         return;
@@ -1032,7 +1019,6 @@ function saveScore() {
         "The match is tied. Choose the winner from the Winner box."
     );
 }
-
 function finishMatch(match, winner) {
 
     match.winner = winner;
