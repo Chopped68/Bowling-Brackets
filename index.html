@@ -53,7 +53,40 @@ function makeMatch(br,roundNo,matchNo,p1,p2){return{id:br.id+'-r'+roundNo+'m'+ma
 function buildFirstRound(br){const slots=new Array(8).fill(null),players=shuffleArray(br.entries);const matchOrder=shuffleArray([0,1,2,3]);if(players.length<=4){players.forEach((p,i)=>{const m=matchOrder[i];slots[m*2+(Math.random()<.5?0:1)]=p})}else{for(let i=0;i<4;i++){const m=matchOrder[i];slots[m*2+(Math.random()<.5?0:1)]=players[i]}const extra=shuffleArray(players.slice(4));const extraMatches=shuffleArray(matchOrder);extra.forEach((p,i)=>{const m=extraMatches[i];const pos=m*2+(slots[m*2]===null?0:1);slots[pos]=p})}const round=[];for(let j=0;j<8;j+=2)round.push(makeMatch(br,1,j/2+1,slots[j],slots[j+1]));br.rounds=[round];processRoundByes(br,round)}
 function processRoundByes(br,round){round.forEach(m=>{if(m.player1&&!m.player2){m.winner=m.player1;m.completed=true;m.bye=true}else if(!m.player1&&m.player2){m.winner=m.player2;m.completed=true;m.bye=true}else if(!m.player1&&!m.player2){m.completed=true;m.bye=true}})}
 function createNextRound(br){const prev=br.rounds[br.rounds.length-1],winners=prev.map(m=>m.winner).filter(Boolean);if(br.rounds.length>=3){if(winners.length===1)br.champion=winners[0];return}const needed=br.rounds.length===1?2:1,next=[];for(let i=0;i<needed;i++)next.push(makeMatch(br,br.rounds.length+1,i+1,winners[i*2]||null,winners[i*2+1]||null));processRoundByes(br,next);br.rounds.push(next);if(next.every(m=>m.completed)&&br.rounds.length<3)createNextRound(br)}
-function advanceBracket(br){const round=br.rounds[br.rounds.length-1];if(!round.every(m=>m.completed))return;if(br.rounds.length<3)createNextRound(br);else{const winners=round.map(m=>m.winner).filter(Boolean);if(winners.length===1)br.champion=winners[0]}}
+function advanceBracket(br){
+  if(br.rounds.length>=3)return;
+  const round=br.rounds[br.rounds.length-1];
+  if(!round.every(m=>m.completed))return;
+
+  const winners=round.map(m=>m.winner).filter(Boolean);
+
+  if(winners.length===1){
+    br.champion=winners[0];
+    return;
+  }
+
+  if(winners.length<2)return;
+
+  const next=[];
+
+  for(let i=0;i<winners.length;i+=2){
+    next.push({
+      id:br.id+'-r'+(br.rounds.length+1)+'m'+(next.length+1),
+      player1:winners[i]||null,
+      player2:winners[i+1]||null,
+      score1:null,
+      score2:null,
+      winner:null,
+      tie1:null,
+      tie2:null,
+      completed:false,
+      bye:false
+    });
+  }
+
+  processRoundByes(br,next);
+  br.rounds.push(next);
+}
 function renderAll(){const wrap=$('bracket');wrap.innerHTML='';tournament.brackets.forEach((br,index)=>{const set=document.createElement('div');set.className='bracket-set';set.innerHTML=`<h2>${br.typeLabel} Bracket ${index+1} <span style="font-weight:normal;font-size:15px">(${br.entries.length} entries)</span></h2>`;const b=document.createElement('div');b.className='bracket';br.rounds.forEach((round,ri)=>{const rd=document.createElement('div');rd.className='round';const h=document.createElement('h3');h.textContent=ri===2?'Championship':`Round ${ri+1}`;rd.appendChild(h);round.forEach((m,mi)=>{const d=document.createElement('div');d.className='match';d.innerHTML=`<div class="match-title">Match ${mi+1}</div><div class="bowler ${m.winner===m.player1?'winner':''}"><span>${esc(m.player1||'BYE')}${m.player1&&br.type==='handicap'?` <small>(HDCP ${calculateHandicap(m.player1)})</small>`:''}</span><span class="score">${disp(m.score1)}${m.score1!==null?` → ${adj(m.player1,m.score1,br.type)}`:''}</span></div><div class="bowler ${m.winner===m.player2?'winner':''}"><span>${esc(m.player2||'BYE')}${m.player2&&br.type==='handicap'?` <small>(HDCP ${calculateHandicap(m.player2)})</small>`:''}</span><span class="score">${disp(m.score2)}${m.score2!==null?` → ${adj(m.player2,m.score2,br.type)}`:''}</span></div>`;if(m.bye){const s=document.createElement('div');s.className='status';s.textContent=m.player1||m.player2?`BYE — advances: ${m.winner}`:'No entry';d.appendChild(s)}else if(!m.completed){const btn=document.createElement('button');btn.className='primary';btn.textContent='Enter Score';btn.onclick=()=>openScoreModal(br,m);d.appendChild(btn)}else{const s=document.createElement('div');s.className='status';s.textContent='Winner: '+m.winner;d.appendChild(s)}rd.appendChild(d)});b.appendChild(rd)});set.appendChild(b);if(br.champion){const info=document.createElement('div');info.className='info';info.innerHTML=`<strong>🏆 Winner: ${esc(br.champion)}</strong>`;set.appendChild(info)}wrap.appendChild(set)});$('tournamentInfo').innerHTML=`<div class="info"><strong>Total entries:</strong> ${tournament.brackets.reduce((s,b)=>s+b.entries.length,0)} &nbsp; | &nbsp; <strong>Independent brackets:</strong> ${tournament.brackets.length} &nbsp; | &nbsp; <strong>3 games per bracket</strong> &nbsp; | &nbsp; <strong>Entry:</strong> $${tournament.entryFee.toFixed(2)}</div>`;saveTournament()}
 function disp(s){return s===null||s===undefined?'':s}function getAverage(name){const b=tournament.bowlers.find(x=>x.name.toLowerCase()===String(name).toLowerCase());return b?b.average:0}function calculateHandicap(name){return Math.max(0,Math.round((tournament.handicapBase-getAverage(name))*(tournament.handicapPercent/100)))}function adj(name,score,type){if(type==='handicap')return score+calculateHandicap(name);if(type==='reverse')return score-calculateHandicap(name);return score}
 function openScoreModal(br,m){activeBracket=br;activeMatch=m;$('score1').value=m.score1??'';$('score2').value=m.score2??'';$('player1Label').textContent=m.player1;$('player2Label').textContent=m.player2;$('tiePlayer1Label').textContent=m.player1;$('tiePlayer2Label').textContent=m.player2;$('tie1').value='';$('tie2').value='';$('tieSection').classList.add('hidden');$('winnerSelect').innerHTML=`<option value="">Automatically determine winner</option><option value="p1">${esc(m.player1)}</option><option value="p2">${esc(m.player2)}</option>`;$('scoreMatchInfo').innerHTML=`<p><strong>${esc(m.player1)}</strong> vs <strong>${esc(m.player2)}</strong></p>`;$('scoreModal').classList.remove('hidden')}
