@@ -18,7 +18,7 @@ body {
 }
 header {
     background: #111827;
-    color: white;FFf
+    color: white;
     text-align: center;
     padding: 22px 15px;
 }
@@ -421,8 +421,8 @@ button:hover {
             </div>
 
             <div>
-                <label>House (Fixed)</label>
-                <input id="housePayout" type="number" value="5" min="5" max="5" step="1" readonly>
+                <label>House</label>
+                <input id="housePayout" type="number" value="5" min="5" max="5" readonly>
             </div>
 
         </div>
@@ -542,8 +542,6 @@ function loadTournament() {
     if (saved) {
         try {
             tournament = JSON.parse(saved);
-            // House payout is always a fixed $5.
-            tournament.housePayout = 5;
             return true;
         } catch (error) {
             sessionStorage.removeItem("bowlingTournament");
@@ -1542,7 +1540,6 @@ function openManagedBracket(id) {
 
     document.getElementById("playerCount").value = "8";
     document.getElementById("scoringType").value = b.type;
-    document.getElementById("housePayout").value = 5;
     createPlayerInputs();
 
     if (b.tournament) {
@@ -1595,7 +1592,6 @@ newTournament = function() {
     document.getElementById("setupPanel").classList.remove("hidden");
     document.getElementById("scoringType").value =
         (managedBrackets().find(b => b.id === activeManagedBracketId) || {}).type || "handicap";
-    document.getElementById("housePayout").value = 5;
     createPlayerInputs();
     renderManagedBrackets();
     window.scrollTo({top:0, behavior:"smooth"});
