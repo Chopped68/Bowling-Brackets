@@ -1340,55 +1340,56 @@ function checkAdvanceRounds() {
         return;
     }
 
-    const currentRoundIndex =
-        tournament.rounds.length - 1;
+    const currentRoundIndex = tournament.rounds.length - 1;
+    const currentRound = tournament.rounds[currentRoundIndex];
 
-    const currentRound =
-        tournament.rounds[currentRoundIndex];
-
-    /*
-       Don't create another round until every match
-       in the current round is finished.
-    */
-
+    // Do not advance until every match is complete.
     if (!currentRound.every(match => match.completed)) {
         return;
     }
 
-    /*
-       Championship completed.
-    */
-
+    // Championship is complete.
     if (currentRound.length === 1) {
-
-        tournament.champion =
-            currentRound[0].winner;
-
+        tournament.champion = currentRound[0].winner;
         showChampion();
-
+        saveTournament();
         return;
     }
 
-    const winners =
-        currentRound.map(match => match.winner);
+    /*
+       IMPORTANT:
+       Only real winners advance.
+
+       A match that was BYE vs BYE has no winner and is
+       completely removed from the next round.
+
+       This prevents BYE vs BYE matches in later rounds.
+    */
+    const winners = currentRound
+        .map(match => match.winner)
+        .filter(winner => winner);
 
     const nextRound = [];
 
+    /*
+       Pair the actual winners only.
+       If there is one player left over, that player receives
+       a BYE into the following round.
+    */
     for (let i = 0; i < winners.length; i += 2) {
 
-        nextRound.push({
+        const player1 = winners[i] || null;
+        const player2 = winners[i + 1] || null;
 
+        const match = {
             id:
                 "r" +
                 tournament.rounds.length +
                 "m" +
                 i,
 
-            player1:
-                winners[i] || null,
-
-            player2:
-                winners[i + 1] || null,
+            player1: player1,
+            player2: player2,
 
             score1: null,
             score2: null,
@@ -1399,44 +1400,34 @@ function checkAdvanceRounds() {
             tie2: null,
 
             completed: false,
-
             bye: false
+        };
 
-        });
-    }
-
-    tournament.rounds.push(nextRound);
-
-    /*
-       Handle byes in later rounds.
-    */
-
-    nextRound.forEach(match => {
-
-        if (!match.player1 && !match.player2) {
-
-            // Empty match created by byes. It is complete and must
-            // not prevent the next round from advancing.
-            match.winner = null;
-            match.completed = true;
-            match.bye = true;
-
-        } else if (match.player1 && !match.player2) {
-
-            match.winner = match.player1;
-            match.completed = true;
-            match.bye = true;
-
-        } else if (!match.player1 && match.player2) {
-
-            match.winner = match.player2;
+        /*
+           Only a single real player gets a BYE.
+           Two empty spots are never created as a match.
+        */
+        if (player1 && !player2) {
+            match.winner = player1;
             match.completed = true;
             match.bye = true;
         }
 
-    });
+        nextRound.push(match);
+    }
+
+    /*
+       Safety check:
+       Never allow a BYE vs BYE match into the bracket.
+    */
+    const safeNextRound = nextRound.filter(match =>
+        match.player1 || match.player2
+    );
+
+    tournament.rounds.push(safeNextRound);
 
     renderBracket();
+    saveTournament();
 }
 
 
