@@ -777,25 +777,77 @@ function buildFirstRound() {
 
     tournament.randomizedEntries = randomized;
     tournament.count = randomized.length;
+    tournament.bracketCount = Math.ceil(randomized.length / 8);
+    tournament.spotCount = tournament.bracketCount * 8;
 
     const round = [];
 
-    // Entries are randomly assigned to 8-spot brackets.
-    // Each 8-entry group becomes one independent bracket.
-    for (let i = 0; i < randomized.length; i += 8) {
-        const group = randomized.slice(i, i + 8);
+    /*
+       Build each 8-spot bracket separately.
 
-        // Pad the final group with nulls. These become byes.
-        while (group.length < 8) group.push(null);
+       When a bracket has 4 or more bowlers, put at least one
+       real bowler in each first-round match before filling the
+       remaining spots. This prevents BYE vs BYE.
 
-        // Store the group's entries in the match order.
-        for (let j = 0; j < group.length; j += 2) {
-            const p1 = group[j];
-            const p2 = group[j + 1];
+       For 20 entries this produces 8 + 8 + 4 players, so the
+       final bracket has exactly one real bowler in each of its
+       four first-round matches and four random byes.
+    */
+    for (let bracketIndex = 0; bracketIndex < tournament.bracketCount; bracketIndex++) {
+        const group = randomized.slice(bracketIndex * 8, bracketIndex * 8 + 8);
+        const playerCount = group.length;
+
+        let slots = new Array(8).fill(null);
+
+        if (playerCount >= 4) {
+            // Randomly choose one position in each first-round match.
+            const positions = shuffleArray([0, 1, 2, 3]).map(m => m * 2 + (Math.random() < 0.5 ? 0 : 1));
+
+            // Randomize which players receive the occupied positions.
+            const groupPlayers = shuffleArray(group);
+
+            for (let i = 0; i < groupPlayers.length; i++) {
+                let position;
+
+                if (i < 4) {
+                    position = positions[i];
+                } else {
+                    const remaining = [];
+                    for (let p = 0; p < 8; p++) {
+                        if (slots[p] === null) remaining.push(p);
+                    }
+                    position = remaining[Math.floor(Math.random() * remaining.length)];
+                }
+
+                slots[position] = groupPlayers[i];
+            }
+        } else {
+            // Fewer than four players: keep the players randomized,
+            // but avoid placing two players in the same first-round
+            // match when possible so the available byes are useful.
+            const matchOrder = shuffleArray([0, 1, 2, 3]);
+            const groupPlayers = shuffleArray(group);
+
+            groupPlayers.forEach((player, i) => {
+                const matchIndex = matchOrder[i % matchOrder.length];
+                const p1 = matchIndex * 2;
+                const p2 = p1 + 1;
+
+                if (slots[p1] === null) {
+                    slots[p1] = player;
+                } else {
+                    slots[p2] = player;
+                }
+            });
+        }
+
+        for (let j = 0; j < 8; j += 2) {
+            const p1 = slots[j];
+            const p2 = slots[j + 1];
 
             round.push({
-                id: "m" + i + "-" + j,
-                bracketNumber: Math.floor(i / 8) + 1,
+                id: "m" + bracketIndex + "-" + j,
+                bracketNumber: bracketIndex + 1,
                 player1: p1 ? p1.name : null,
                 player2: p2 ? p2.name : null,
                 score1: null,
@@ -810,41 +862,33 @@ function buildFirstRound() {
     }
 
     tournament.rounds = [round];
-    tournament.bracketCount = Math.ceil(randomized.length / 8);
-    tournament.spotCount = tournament.bracketCount * 8;
 
     processByes();
 }
 
 function processByes() {
-
     const firstRound = tournament.rounds[0];
 
     firstRound.forEach(match => {
-
         if (!match.player1 && !match.player2) {
-
+            // No bowlers in this match. Mark it complete with no winner
+            // so it can never block the tournament from advancing.
             match.winner = null;
             match.completed = true;
             match.bye = true;
 
         } else if (match.player1 && !match.player2) {
-
             match.winner = match.player1;
             match.completed = true;
             match.bye = true;
 
         } else if (!match.player1 && match.player2) {
-
             match.winner = match.player2;
             match.completed = true;
             match.bye = true;
-
         }
-
     });
 }
-
 
 function renderBracket() {
 
@@ -1369,19 +1413,23 @@ function checkAdvanceRounds() {
 
     nextRound.forEach(match => {
 
-        if (match.player1 && !match.player2) {
+        if (!match.player1 && !match.player2) {
 
-            match.winner =
-                match.player1;
+            // Empty match created by byes. It is complete and must
+            // not prevent the next round from advancing.
+            match.winner = null;
+            match.completed = true;
+            match.bye = true;
 
+        } else if (match.player1 && !match.player2) {
+
+            match.winner = match.player1;
             match.completed = true;
             match.bye = true;
 
         } else if (!match.player1 && match.player2) {
 
-            match.winner =
-                match.player2;
-
+            match.winner = match.player2;
             match.completed = true;
             match.bye = true;
         }
