@@ -55,7 +55,11 @@ function buildFirstRound(br){const slots=new Array(8).fill(null),players=shuffle
 function processRoundByes(br,round){round.forEach(m=>{if(m.player1&&!m.player2){m.winner=m.player1;m.completed=true;m.bye=true}else if(!m.player1&&m.player2){m.winner=m.player2;m.completed=true;m.bye=true}else if(!m.player1&&!m.player2){m.completed=true;m.bye=true}})}
 function createNextRound(br){const prev=br.rounds[br.rounds.length-1],winners=prev.map(m=>m.winner).filter(Boolean);if(br.rounds.length>=3){if(winners.length===1)br.champion=winners[0];return}const needed=br.rounds.length===1?2:1,next=[];for(let i=0;i<needed;i++)next.push(makeMatch(br,br.rounds.length+1,i+1,winners[i*2]||null,winners[i*2+1]||null));processRoundByes(br,next);br.rounds.push(next);if(next.every(m=>m.completed)&&br.rounds.length<3)createNextRound(br)}
 function advanceBracket(br){
-  if(br.rounds.length>=3)return;
+  if(br.rounds.length>=3){
+    const finalRound=br.rounds[2];
+    if(finalRound&&finalRound.length===1&&finalRound[0].completed&&finalRound[0].winner){br.champion=finalRound[0].winner;}
+    return;
+  }
   const round=br.rounds[br.rounds.length-1];
   if(!round.every(m=>m.completed))return;
   const winners=round.map(m=>m.winner).filter(Boolean);
