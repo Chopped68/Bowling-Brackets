@@ -99,27 +99,40 @@ function renderAll(){syncBracketChampions();renderPayoutResults();renderBowlerDa
 function disp(s){return s===null||s===undefined?'':s}function getAverage(name){const b=tournament.bowlers.find(x=>x.name.toLowerCase()===String(name).toLowerCase());return b?b.average:0}function calculateHandicap(name){return Math.max(0,Math.round((tournament.handicapBase-getAverage(name))*(tournament.handicapPercent/100)))}function adj(name,score,type){if(type==='handicap')return score+calculateHandicap(name);return score}
 function openScoreModal(br,m){activeBracket=br;activeMatch=m;$('score1').value=m.score1??'';$('score2').value=m.score2??'';$('player1Label').textContent=m.player1;$('player2Label').textContent=m.player2;$('tiePlayer1Label').textContent=m.player1;$('tiePlayer2Label').textContent=m.player2;$('tie1').value='';$('tie2').value='';$('tieSection').classList.add('hidden');$('winnerSelect').innerHTML=`<option value="">Automatically determine winner</option><option value="p1">${esc(m.player1)}</option><option value="p2">${esc(m.player2)}</option>`;$('scoreMatchInfo').innerHTML=`<p><strong>${esc(m.player1)}</strong> vs <strong>${esc(m.player2)}</strong></p>`;$('scoreModal').classList.remove('hidden')}
 function closeScoreModal(){$('scoreModal').classList.add('hidden');activeMatch=null;activeBracket=null}
-function applyScoreToAllActiveMatches(name,score,sourceBracket,sourceMatch,sourceRound){
-  if(!name||score===null||score===undefined)return;
+function findMatchLocation(bracketId, matchId){
+  if(!tournament||!Array.isArray(tournament.brackets))return null;
+  const br=tournament.brackets.find(b=>b&&b.id===bracketId);
+  if(!br||!Array.isArray(br.rounds))return null;
+  for(let ri=0;ri<br.rounds.length;ri++){
+    const round=br.rounds[ri];
+    if(!Array.isArray(round))continue;
+    const m=round.find(x=>x&&x.id===matchId);
+    if(m)return {br,m,roundIndex:ri};
+  }
+  return null;
+}
+function applyScoreToAllActiveMatches(name,score,sourceBracketId,sourceMatchId,sourceRound){
+  if(!name||score===null||score===undefined||!tournament)return;
   const key=String(name).trim().toLowerCase();
-  for(const br of tournament.brackets){
-    if(!Array.isArray(br.rounds[sourceRound]))continue;
-    for(const m of br.rounds[sourceRound]){
-      if(m===sourceMatch||m.completed)continue;
+  for(const br of tournament.brackets||[]){
+    const round=br&&br.rounds&&br.rounds[sourceRound];
+    if(!Array.isArray(round))continue;
+    for(const m of round){
+      if(!m||m.completed||br.id===sourceBracketId&&m.id===sourceMatchId)continue;
       if(m.player1&&String(m.player1).trim().toLowerCase()===key)m.score1=score;
       if(m.player2&&String(m.player2).trim().toLowerCase()===key)m.score2=score;
     }
   }
 }
-function resolveReadyMatches(sourceRound,sourceMatch,sourceWinner){
+function resolveReadyMatches(sourceRound,sourceBracketId,sourceMatchId,sourceWinner){
   const completed=[];
-  for(const br of tournament.brackets){
-    const round=br.rounds[sourceRound];
-    if(!round)continue;
+  for(const br of tournament.brackets||[]){
+    const round=br&&br.rounds&&br.rounds[sourceRound];
+    if(!Array.isArray(round))continue;
     for(const m of round){
-      if(m.completed||!m.player1||!m.player2||m.score1===null||m.score2===null)continue;
+      if(!m||m.completed||!m.player1||!m.player2||m.score1===null||m.score2===null)continue;
       let winner=null;
-      if(m===sourceMatch){
+      if(br.id===sourceBracketId&&m.id===sourceMatchId){
         winner=sourceWinner;
       }else{
         const x=adj(m.player1,m.score1,br.type),y=adj(m.player2,m.score2,br.type);
@@ -130,6 +143,7 @@ function resolveReadyMatches(sourceRound,sourceMatch,sourceWinner){
       m.winner=winner;
       m.completed=true;
       const loser=winner===m.player1?m.player2:m.player1;
+      if(loser&&!Array.isArray(br.eliminated))br.eliminated=[];
       if(loser&&!br.eliminated.includes(loser))br.eliminated.push(loser);
       completed.push({br,m});
     }
@@ -137,76 +151,88 @@ function resolveReadyMatches(sourceRound,sourceMatch,sourceWinner){
   return completed;
 }
 function saveScore(){
-  if(!activeMatch||!activeBracket){alert('Please reopen the match and enter the scores.');return;}
-  const a=$('score1').value.trim(), b=$('score2').value.trim();
-  if(a===''&&b===''){alert("Enter at least one bowler's score.");return;}
-  const s1=a===''?null:Number(a), s2=b===''?null:Number(b);
-  if((s1!==null&&(s1<0||s1>300))||(s2!==null&&(s2<0||s2>300))){alert('Bowling scores must be between 0 and 300.');return;}
+  if(window.__savingScore)return;
+  window.__savingScore=true;
+  const btn=$('saveScoreButton');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    if(!activeMatch||!activeBracket){alert('Please reopen the match and enter the scores.');return;}
+    const a=$('score1').value.trim(), b=$('score2').value.trim();
+    if(a===''&&b===''){alert("Enter at least one bowler's score.");return;}
+    const s1=a===''?null:Number(a), s2=b===''?null:Number(b);
+    if((s1!==null&&(s1<0||s1>300))||(s2!==null&&(s2<0||s2>300))){alert('Bowling scores must be between 0 and 300.');return;}
 
-  const sourceBr=activeBracket, sourceMatch=activeMatch;
-  const sourceRound=sourceBr.rounds.findIndex(r=>r.includes(sourceMatch));
-  if(sourceRound<0){alert('Could not determine the current round. Please reopen the match.');return;}
-  const snapshot=JSON.parse(JSON.stringify(tournament));
+    // Capture stable IDs before any rendering can replace object references.
+    const sourceBracketId=activeBracket.id;
+    const sourceMatchId=activeMatch.id;
+    const loc=findMatchLocation(sourceBracketId,sourceMatchId);
+    if(!loc){alert('Could not find this match. Please close and reopen it.');return;}
+    const sourceBr=loc.br, sourceMatch=loc.m, sourceRound=loc.roundIndex;
+    const snapshot=JSON.parse(JSON.stringify(tournament));
 
-  // One score entry updates this bowler in every OTHER active match in the
-  // SAME ROUND. Scores never carry into a later round.
-  sourceMatch.score1=s1;
-  sourceMatch.score2=s2;
-  if(s1!==null)applyScoreToAllActiveMatches(sourceMatch.player1,s1,sourceBr,sourceMatch,sourceRound);
-  if(s2!==null)applyScoreToAllActiveMatches(sourceMatch.player2,s2,sourceBr,sourceMatch,sourceRound);
+    sourceMatch.score1=s1;
+    sourceMatch.score2=s2;
+    if(s1!==null)applyScoreToAllActiveMatches(sourceMatch.player1,s1,sourceBracketId,sourceMatchId,sourceRound);
+    if(s2!==null)applyScoreToAllActiveMatches(sourceMatch.player2,s2,sourceBracketId,sourceMatchId,sourceRound);
 
-  if(s1===null||s2===null){
-    closeScoreModal();renderAll();saveTournament();return;
-  }
+    // A partial score is saved but does not create an undo result yet.
+    if(s1===null||s2===null){
+      closeScoreModal();renderAll();saveTournament();return;
+    }
 
-  let sourceWinner=null;
-  const manual=$('winnerSelect').value;
-  if(manual==='p1')sourceWinner=sourceMatch.player1;
-  else if(manual==='p2')sourceWinner=sourceMatch.player2;
-  else{
-    const x=adj(sourceMatch.player1,s1,sourceBr.type),y=adj(sourceMatch.player2,s2,sourceBr.type);
-    if(x>y)sourceWinner=sourceMatch.player1;
-    else if(y>x)sourceWinner=sourceMatch.player2;
-  }
+    let sourceWinner=null;
+    const manual=$('winnerSelect').value;
+    if(manual==='p1')sourceWinner=sourceMatch.player1;
+    else if(manual==='p2')sourceWinner=sourceMatch.player2;
+    else{
+      const x=adj(sourceMatch.player1,s1,sourceBr.type),y=adj(sourceMatch.player2,s2,sourceBr.type);
+      if(x>y)sourceWinner=sourceMatch.player1;
+      else if(y>x)sourceWinner=sourceMatch.player2;
+    }
 
-  if(!sourceWinner&&tournament.tieBreaker==='ninthtenth'){
-    if($('tie1').value===''||$('tie2').value===''){
-      $('tieSection').classList.remove('hidden');
-      alert('The match is tied. Enter the combined 9th and 10th frame scores.');
+    if(!sourceWinner&&tournament.tieBreaker==='ninthtenth'){
+      if($('tie1').value===''||$('tie2').value===''){
+        $('tieSection').classList.remove('hidden');
+        alert('The match is tied. Enter the combined 9th and 10th frame scores.');
+        return;
+      }
+      const t1=Number($('tie1').value),t2=Number($('tie2').value);
+      if(t1<0||t1>50||t2<0||t2>50){alert('Enter valid combined 9th and 10th frame scores.');return;}
+      sourceMatch.tie1=t1;sourceMatch.tie2=t2;
+      if(t1>t2)sourceWinner=sourceMatch.player1;
+      else if(t2>t1)sourceWinner=sourceMatch.player2;
+    }
+
+    if(!sourceWinner){
+      closeScoreModal();renderAll();saveTournament();
+      alert('The match is still tied. Choose the winner from the Winner box.');
       return;
     }
-    const t1=Number($('tie1').value),t2=Number($('tie2').value);
-    if(t1<0||t1>50||t2<0||t2>50){alert('Enter valid combined 9th and 10th frame scores.');return;}
-    sourceMatch.tie1=t1;sourceMatch.tie2=t2;
-    if(t1>t2)sourceWinner=sourceMatch.player1;
-    else if(t2>t1)sourceWinner=sourceMatch.player2;
+
+    const completed=resolveReadyMatches(sourceRound,sourceBracketId,sourceMatchId,sourceWinner);
+    if(!completed.length){alert('The score was entered, but the match could not be completed. Please reopen it.');return;}
+
+    if(!Array.isArray(tournament.undoStack))tournament.undoStack=[];
+    const resultId='res_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    tournament.undoStack.push({snapshot,resultId});
+    completed.forEach(({m})=>m.undoResultId=resultId);
+
+    const touched=[];
+    for(const item of completed)if(!touched.includes(item.br))touched.push(item.br);
+    closeScoreModal();
+    for(const br of touched)advanceBracket(br);
+    renderAll();
+    archiveCompletedTournament();
+    saveTournament();
+    updateUndoButton();
+  }catch(err){
+    console.error('Save Score error:',err);
+    alert('Save Score encountered an error: '+(err&&err.message?err.message:String(err)));
+  }finally{
+    window.__savingScore=false;
+    const b=$('saveScoreButton');
+    if(b){b.disabled=false;b.textContent='Save Score';}
   }
-
-  if(!sourceWinner){
-    closeScoreModal();renderAll();saveTournament();
-    alert('The match is still tied. Choose the winner from the Winner box.');
-    return;
-  }
-
-  // Complete the saved match AND any other active match in this same round
-  // that now has both scores because of the synchronized entry.
-  const completed=resolveReadyMatches(sourceRound,sourceMatch,sourceWinner);
-  if(!completed.length)return;
-
-  if(!Array.isArray(tournament.undoStack))tournament.undoStack=[];
-  const resultId='res_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-  tournament.undoStack.push({snapshot,resultId});
-  completed.forEach(({m})=>m.undoResultId=resultId);
-
-  // Advance every bracket touched by this single score entry. Each bracket
-  // advances only when its current round is completely resolved.
-  const touched=[...new Set(completed.map(x=>x.br))];
-  closeScoreModal();
-  touched.forEach(br=>advanceBracket(br));
-  renderAll();
-  archiveCompletedTournament();
-  saveTournament();
-  updateUndoButton();
 }
 
 function finishMatch(br,m,winner,sourceRound,undoSnapshot){
