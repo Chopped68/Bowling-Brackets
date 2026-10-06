@@ -85,6 +85,9 @@ function advanceBracket(br){
       bye:false
     });
   }
+  // New-round matches always start with completely blank scores.
+  // Never carry a score from the previous round into the next game.
+  next.forEach(m=>{m.score1=null;m.score2=null;m.tie1=null;m.tie2=null;m.winner=null;m.completed=false;m.undoResultId=null;});
   processRoundByes(br,next);
   br.rounds.push(next);
 }
@@ -115,10 +118,13 @@ function applyScoreToAllActiveMatches(name,score,sourceBracketId,sourceMatchId,s
   if(!name||score===null||score===undefined||!tournament)return;
   const key=String(name).trim().toLowerCase();
   for(const br of tournament.brackets||[]){
-    const round=br&&br.rounds&&br.rounds[sourceRound];
+    // Sync only to OTHER brackets and only to the same round/game.
+    // Never write a score into another round of the bracket being played.
+    if(!br||br.id===sourceBracketId)continue;
+    const round=br.rounds&&br.rounds[sourceRound];
     if(!Array.isArray(round))continue;
     for(const m of round){
-      if(!m||m.completed||br.id===sourceBracketId&&m.id===sourceMatchId)continue;
+      if(!m||m.completed)continue;
       if(m.player1&&String(m.player1).trim().toLowerCase()===key)m.score1=score;
       if(m.player2&&String(m.player2).trim().toLowerCase()===key)m.score2=score;
     }
