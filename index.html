@@ -103,15 +103,22 @@ function applyScoreToAllActiveMatches(name,score,sourceBracket,sourceMatch){if(!
 function saveScore(){
   if(!activeMatch||!activeBracket){alert("Please reopen the match and enter the scores.");return;}
   const a=$('score1').value.trim(), b=$('score2').value.trim();
-  if(a===''&&b===''){alert("Enter at least one bowler\'s score.");return;}
+  if(a===''&&b===''){alert("Enter at least one bowler's score.");return;}
   const s1=a===''?null:Number(a), s2=b===''?null:Number(b);
   if((s1!==null&&(s1<0||s1>300))||(s2!==null&&(s2<0||s2>300))){alert('Bowling scores must be between 0 and 300.');return;}
 
-  pendingUndoSnapshot=JSON.parse(JSON.stringify(tournament));
   const br=activeBracket, m=activeMatch;
-  const sourceRound=br.rounds.indexOf(br.rounds.find(r=>r.includes(m)));
+  let sourceRound=-1;
+  for(let ri=0;ri<br.rounds.length;ri++){
+    if(br.rounds[ri].includes(m)){sourceRound=ri;break;}
+  }
 
-  // Sync this game only to other active matches in the same round.
+  // Take exactly one snapshot for this Save operation.  This snapshot is
+  // used only if this specific match is actually completed.
+  const undoSnapshot=JSON.parse(JSON.stringify(tournament));
+
+  // Sync scores only to other ACTIVE matches in the same round.  Do not
+  // complete or advance those other matches automatically.
   if(s1!==null)applyScoreToAllActiveMatches(m.player1,s1,br,m);
   if(s2!==null)applyScoreToAllActiveMatches(m.player2,s2,br,m);
   m.score1=s1; m.score2=s2;
@@ -122,12 +129,12 @@ function saveScore(){
   }
 
   const manual=$('winnerSelect').value;
-  if(manual==='p1')return finishMatch(br,m,m.player1,sourceRound);
-  if(manual==='p2')return finishMatch(br,m,m.player2,sourceRound);
+  if(manual==='p1')return finishMatch(br,m,m.player1,sourceRound,undoSnapshot);
+  if(manual==='p2')return finishMatch(br,m,m.player2,sourceRound,undoSnapshot);
 
   const x=adj(m.player1,s1,br.type), y=adj(m.player2,s2,br.type);
-  if(x>y)return finishMatch(br,m,m.player1,sourceRound);
-  if(y>x)return finishMatch(br,m,m.player2,sourceRound);
+  if(x>y)return finishMatch(br,m,m.player1,sourceRound,undoSnapshot);
+  if(y>x)return finishMatch(br,m,m.player2,sourceRound,undoSnapshot);
 
   if(tournament.tieBreaker==='ninthtenth'){
     if($('tie1').value===''||$('tie2').value===''){
@@ -138,51 +145,27 @@ function saveScore(){
     const t1=Number($('tie1').value), t2=Number($('tie2').value);
     if(t1<0||t1>50||t2<0||t2>50){alert('Enter valid combined 9th and 10th frame scores.');return;}
     m.tie1=t1; m.tie2=t2;
-    if(t1>t2)return finishMatch(br,m,m.player1,sourceRound);
-    if(t2>t1)return finishMatch(br,m,m.player2,sourceRound);
+    if(t1>t2)return finishMatch(br,m,m.player1,sourceRound,undoSnapshot);
+    if(t2>t1)return finishMatch(br,m,m.player2,sourceRound,undoSnapshot);
   }
   pendingUndoSnapshot=null;
   alert('The match is still tied. Choose the winner from the Winner box.');
 }
-function autoResolveSyncedMatches(sourceRound,undoSnapshot){
-  if(sourceRound===undefined||sourceRound===null||sourceRound<0)return;
-  for(const br of tournament.brackets){
-    const round=br.rounds[sourceRound];
-    if(!round)continue;
-    for(const m of round){
-      if(m.completed||m.bye||!m.player1||!m.player2||m.score1===null||m.score2===null)continue;
-      const x=adj(m.player1,m.score1,br.type), y=adj(m.player2,m.score2,br.type);
-      if(x===y)continue;
-      const winner=x>y?m.player1:m.player2;
-      m.winner=winner; m.completed=true;
-      const loser=winner===m.player1?m.player2:m.player1;
-      if(loser&&!br.eliminated.includes(loser))br.eliminated.push(loser);
-      if(undoSnapshot){
-        if(!Array.isArray(tournament.undoStack))tournament.undoStack=[];
-        const resultId='res_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-        tournament.undoStack.push({snapshot:undoSnapshot,resultId});
-        m.undoResultId=resultId;
-        undoSnapshot=null;
-      }
-      advanceBracket(br);
-    }
-  }
-}
-function finishMatch(br,m,winner,sourceRound){
-  const undoSnapshot=pendingUndoSnapshot;
+function finishMatch(br,m,winner,sourceRound,undoSnapshot){
+  // Record one undo point for THIS result only.  Never reuse a previous
+  // match's snapshot and never create an undo record for synced matches.
   if(undoSnapshot){
     if(!Array.isArray(tournament.undoStack))tournament.undoStack=[];
     const resultId='res_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
     tournament.undoStack.push({snapshot:undoSnapshot,resultId});
     m.undoResultId=resultId;
-    pendingUndoSnapshot=null;
   }
+  pendingUndoSnapshot=null;
   m.winner=winner; m.completed=true;
   const loser=winner===m.player1?m.player2:m.player1;
   if(loser&&!br.eliminated.includes(loser))br.eliminated.push(loser);
   closeScoreModal();
   advanceBracket(br);
-  autoResolveSyncedMatches(sourceRound,undoSnapshot);
   renderAll(); archiveCompletedTournament(); saveTournament(); updateUndoButton();
 }
 function undoResultAt(index){if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack[index])return;const item=tournament.undoStack[index];const msg=index===tournament.undoStack.length-1?'Undo this result?':'Undo this result? This will also remove any results entered after it.';if(!confirm(msg))return;const restored=JSON.parse(JSON.stringify(item.snapshot));restored.undoStack=tournament.undoStack.slice(0,index);tournament=restored;tournament.historyArchived=false;pendingUndoSnapshot=null;localStorage.setItem('bowlingTournamentActive',JSON.stringify(tournament));renderAll();updateUndoButton()}function undoLastResult(){if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack.length)return;undoResultAt(tournament.undoStack.length-1)}
