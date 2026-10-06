@@ -261,7 +261,53 @@ function finishMatch(br,m,winner,sourceRound,undoSnapshot){
   advanceBracket(br);
   renderAll(); archiveCompletedTournament(); saveTournament(); updateUndoButton();
 }
-function undoResultAt(index){if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack[index])return;const item=tournament.undoStack[index];const msg=index===tournament.undoStack.length-1?'Undo this result?':'Undo this result? This will also remove any results entered after it.';if(!confirm(msg))return;const restored=JSON.parse(JSON.stringify(item.snapshot));restored.undoStack=tournament.undoStack.slice(0,index);tournament=restored;tournament.historyArchived=false;pendingUndoSnapshot=null;localStorage.setItem('bowlingTournamentActive',JSON.stringify(tournament));renderAll();updateUndoButton()}function undoLastResult(){if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack.length)return;undoResultAt(tournament.undoStack.length-1)}
+function undoResultAt(index){
+  if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack[index])return;
+  const item=tournament.undoStack[index];
+  const msg=index===tournament.undoStack.length-1?'Undo this result?':'Undo this result? This will also remove any results entered after it.';
+  if(!confirm(msg))return;
+
+  // Preserve the scores from the result being undone. Restoring the old snapshot
+  // alone would make the match appear as if no scores had ever been entered.
+  let resultInfo=null;
+  for(const br of tournament.brackets||[]){
+    for(const round of br.rounds||[]){
+      for(const m of round||[]){
+        if(m&&m.undoResultId){
+          resultInfo={bracketId:br.id,matchId:m.id,score1:m.score1,score2:m.score2,tie1:m.tie1,tie2:m.tie2};
+          break;
+        }
+      }
+      if(resultInfo)break;
+    }
+    if(resultInfo)break;
+  }
+
+  const restored=JSON.parse(JSON.stringify(item.snapshot));
+  restored.undoStack=tournament.undoStack.slice(0,index);
+  tournament=restored;
+  tournament.historyArchived=false;
+  pendingUndoSnapshot=null;
+
+  if(resultInfo){
+    const br=(tournament.brackets||[]).find(x=>x&&x.id===resultInfo.bracketId);
+    const m=br?((br.rounds||[]).flat().find(x=>x&&x.id===resultInfo.matchId)):null;
+    if(m){
+      m.score1=resultInfo.score1;
+      m.score2=resultInfo.score2;
+      m.tie1=resultInfo.tie1;
+      m.tie2=resultInfo.tie2;
+      m.winner=null;
+      m.completed=false;
+      m.bye=false;
+      m.undoResultId=null;
+    }
+  }
+
+  saveTournament();
+  renderAll();
+  updateUndoButton();
+}function undoLastResult(){if(!tournament||!Array.isArray(tournament.undoStack)||!tournament.undoStack.length)return;undoResultAt(tournament.undoStack.length-1)}
 function updateUndoButton(){const b=$('undoButton');if(!b)return;const has=!!(tournament&&Array.isArray(tournament.undoStack)&&tournament.undoStack.length);b.disabled=!has;b.textContent='Undo Last Result'+(has?' ('+tournament.undoStack.length+')':'')}
 
 function saveTournament(){
